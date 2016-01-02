@@ -289,8 +289,8 @@ export interface IResult {
 }
 
 export interface IAutoSaveConfiguration {
-	autoSaveAfterDelay: number;
-	autoSaveAfterFocusChange: boolean;
+	autoSaveDelay: number;
+	autoSaveFocusChange: boolean;
 }
 
 export var ITextFileService = createDecorator<ITextFileService>(TEXT_FILE_SERVICE_ID);
@@ -375,4 +375,9 @@ export interface ITextFileService extends IDisposable {
 	 * Convinient fast access to the configured auto save settings.
 	 */
 	getAutoSaveConfiguration(): IAutoSaveConfiguration;
+
+	/**
+	 * Event is fired with the auto save configuration whenever it changes.
+	 */
+	onAutoSaveConfigurationChange: Event<IAutoSaveConfiguration>;
 }
