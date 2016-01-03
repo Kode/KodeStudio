@@ -55,8 +55,12 @@ export class SelectConfigActionItem extends BaseActionItem {
 
 		return this.debugService.loadLaunchConfig().then(config => {
 			if (!config || !config.configurations) {
-				this.select.options.add(this.createOption('<none>'));
-				this.select.disabled = true;
+				//this.select.options.add(this.createOption('<none>'));
+				//this.select.disabled = true;
+				let targets = ['HTML5', 'Windows', 'OSX', 'Linux'];
+				for (let target of targets) {
+					this.select.options.add(this.createOption(target));
+				}
 				return;
 			}
 
