@@ -1,0 +1,4 @@
+[submodule "extensions/haxe"]
+	path = extensions/haxe
+	url = ../vscode-haxe
+	branch = master
