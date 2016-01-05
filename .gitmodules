@@ -2,3 +2,7 @@
 	path = extensions/haxe
 	url = ../vscode-haxe
 	branch = master
+[submodule "extensions/shader"]
+	path = extensions/shader
+	url = ../vscode-shader
+	branch = master
