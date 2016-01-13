@@ -6,3 +6,7 @@
 	path = extensions/shader
 	url = ../vscode-shader
 	branch = master
+[submodule "extensions/chrome-debug"]
+	path = extensions/chrome-debug
+	url = ../vscode-chrome-debug
+	branch = master
