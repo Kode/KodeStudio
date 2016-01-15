@@ -14,16 +14,15 @@ import nls = require('vs/nls');
 import {SyncActionDescriptor} from 'vs/platform/actions/common/actions';
 import {Registry} from 'vs/platform/platform';
 import {IConfigurationRegistry, Extensions as ConfigurationExtensions} from 'vs/platform/configuration/common/configurationRegistry';
-import {IWorkbenchActionRegistry, Extensions as ActionExtensions} from 'vs/workbench/browser/actionRegistry';
+import {IWorkbenchActionRegistry, Extensions as ActionExtensions} from 'vs/workbench/common/actionRegistry';
 import {IWorkbenchContributionsRegistry, Extensions as WorkbenchExtensions} from 'vs/workbench/common/contributions';
 import {IEditorRegistry, Extensions as EditorExtensions, IEditorInputFactory} from 'vs/workbench/browser/parts/editor/baseEditor';
 import {EditorInput, IFileEditorInput} from 'vs/workbench/common/editor';
 import {FileEditorDescriptor} from 'vs/workbench/parts/files/browser/files';
 import {FILE_EDITOR_INPUT_ID, VIEWLET_ID} from 'vs/workbench/parts/files/common/files';
 import {FileTracker} from 'vs/workbench/parts/files/browser/fileTracker';
-import {SaveParticipant} from 'vs/workbench/parts/files/browser/saveParticipant';
+import {SaveParticipant} from 'vs/workbench/parts/files/common/editors/saveParticipant';
 import {FileEditorInput} from 'vs/workbench/parts/files/browser/editors/fileEditorInput';
-import {HTMLFrameEditorInput} from 'vs/workbench/parts/files/browser/editors/htmlFrameEditorInput';
 import {TextFileEditor} from 'vs/workbench/parts/files/browser/editors/textFileEditor';
 import {BinaryFileEditor} from 'vs/workbench/parts/files/browser/editors/binaryFileEditor';
 import {IInstantiationService, INullService} from 'vs/platform/instantiation/common/instantiation';
@@ -53,7 +52,7 @@ export class OpenExplorerViewletAction extends ToggleViewletAction {
 	'vs/workbench/parts/files/browser/explorerViewlet',
 	'ExplorerViewlet',
 	VIEWLET_ID,
-	nls.localize('explore', "Explore"),
+	nls.localize('explore', "Explorer"),
 	'explore',
 	0
 ));
@@ -145,24 +144,6 @@ class FileEditorInputFactory implements IEditorInputFactory {
 }
 
 (<IEditorRegistry>Registry.as(EditorExtensions.Editors)).registerEditorInputFactory(FILE_EDITOR_INPUT_ID, FileEditorInputFactory);
-
-// Register HTML Frame Editor Input Factory
-class HTMLFrameEditorInputFactory implements IEditorInputFactory {
-
-	constructor(@INullService ns) {}
-
-	public serialize(editorInput: EditorInput): string {
-		let htmlInput = <HTMLFrameEditorInput>editorInput;
-
-		return htmlInput.getResource().toString();
-	}
-
-	public deserialize(instantiationService: IInstantiationService, resourceRaw: string): EditorInput {
-		return instantiationService.createInstance(HTMLFrameEditorInput, URI.parse(resourceRaw));
-	}
-}
-
-(<IEditorRegistry>Registry.as(EditorExtensions.Editors)).registerEditorInputFactory(HTMLFrameEditorInput.ID, HTMLFrameEditorInputFactory);
 
 // Register File Tracker
 (<IWorkbenchContributionsRegistry>Registry.as(WorkbenchExtensions.Workbench)).registerWorkbenchContribution(

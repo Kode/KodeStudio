@@ -33,7 +33,8 @@ export function activate(context: ExtensionContext): void {
 
 	let MODE_ID_TS = 'typescript';
 	let MODE_ID_TSX = 'typescriptreact';
-	let MY_PLUGIN_ID = 'vs.language.typescript';
+	let MODE_ID_JS = 'javascript';
+	let MODE_ID_JSX = 'javascriptreact';
 
 	let clientHost = new TypeScriptServiceClientHost();
 	let client = clientHost.serviceClient;
@@ -45,6 +46,11 @@ export function activate(context: ExtensionContext): void {
 	client.onReady().then(() => {
 		registerSupports(MODE_ID_TS, clientHost, client);
 		registerSupports(MODE_ID_TSX, clientHost, client);
+		let useSalsa = !!process.env['CODE_TSJS'] || !!process.env['VSCODE_TSJS']
+		if (useSalsa) {
+			registerSupports(MODE_ID_JS, clientHost, client);
+			registerSupports(MODE_ID_JSX, clientHost, client);
+		}
 	}, () => {
 		// Nothing to do here. The client did show a message;
 	})
@@ -94,7 +100,7 @@ function registerSupports(modeID: string, host: TypeScriptServiceClientHost, cli
 			},
 			{
 				// e.g.  * ...|
-				beforeText: /^(\t|(\ \ ))*\ \*\ ([^\*]|\*(?!\/))*$/,
+				beforeText: /^(\t|(\ \ ))*\ \*(\ ([^\*]|\*(?!\/))*)?$/,
 				action: { indentAction: IndentAction.None, appendText: '* ' }
 			},
 			{
@@ -119,7 +125,8 @@ function registerSupports(modeID: string, host: TypeScriptServiceClientHost, cli
 				{ open: '[', close: ']' },
 				{ open: '(', close: ')' },
 				{ open: '"', close: '"', notIn: ['string'] },
-				{ open: '\'', close: '\'', notIn: ['string', 'comment'] }
+				{ open: '\'', close: '\'', notIn: ['string', 'comment'] },
+				{ open: '`', close: '`', notIn: ['string', 'comment'] }
 			]
 		}
 	});

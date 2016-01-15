@@ -10,7 +10,7 @@ import lifecycle = require('vs/base/common/lifecycle');
 import builder = require('vs/base/browser/builder');
 import dom = require('vs/base/browser/dom');
 import platform = require('vs/base/common/platform');
-import tree = require('vs/base/parts/tree/common/tree');
+import tree = require('vs/base/parts/tree/browser/tree');
 import treeimpl = require('vs/base/parts/tree/browser/treeImpl');
 import wbeditorcommon = require('vs/workbench/common/editor');
 import baseeditor = require('vs/workbench/browser/parts/editor/baseEditor');
@@ -40,6 +40,7 @@ const HISTORY_STORAGE_KEY = 'debug.repl.history';
 export class Repl extends baseeditor.BaseEditor {
 
 	public static ID = 'workbench.editors.replEditor';
+	private static HALF_WIDTH_TYPICAL = 'n';
 
 	private static HISTORY: replhistory.ReplHistory;
 	private static REFRESH_DELAY = 500; // delay in ms to refresh the repl for new elements to show
@@ -122,7 +123,7 @@ export class Repl extends baseeditor.BaseEditor {
 		});
 
 		this.characterWidthSurveyor = dom.append(container, $('.surveyor'));
-		this.characterWidthSurveyor.textContent = 'a';
+		this.characterWidthSurveyor.textContent = Repl.HALF_WIDTH_TYPICAL;
 		for (let i = 0; i < 10; i++) {
 			this.characterWidthSurveyor.textContent += this.characterWidthSurveyor.textContent;
 		}

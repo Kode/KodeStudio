@@ -6,7 +6,6 @@
 'use strict';
 
 import events = require('events');
-import {IAutoUpdater, IUpdate} from 'auto-updater';
 import path = require('path');
 import os = require('os');
 import cp = require('child_process');
@@ -15,11 +14,18 @@ import {mkdirp} from 'vs/base/node/extfs';
 import {isString} from 'vs/base/common/types';
 import {Promise, TPromise} from 'vs/base/common/winjs.base';
 import {download, json } from 'vs/base/node/request';
-import { getProxyAgent } from 'vs/workbench/node/proxy';
+import { getProxyAgent } from 'vs/base/node/proxy';
 import {manager as Settings} from 'vs/workbench/electron-main/settings';
 import {manager as Lifecycle} from 'vs/workbench/electron-main/lifecycle';
 
-export class Win32AutoUpdaterImpl extends events.EventEmitter implements IAutoUpdater {
+export interface IUpdate {
+	url: string;
+	name: string;
+	releaseNotes?: string;
+	version?: string;
+}
+
+export class Win32AutoUpdaterImpl extends events.EventEmitter {
 
 	private url: string;
 	private currentRequest: Promise;
@@ -36,7 +42,7 @@ export class Win32AutoUpdaterImpl extends events.EventEmitter implements IAutoUp
 		return new TPromise<string>((c, e) => mkdirp(result, null, err => err ? e(err) : c(result)));
 	}
 
-	public setFeedUrl(url: string): void {
+	public setFeedURL(url: string): void {
 		this.url = url;
 	}
 
@@ -52,7 +58,7 @@ export class Win32AutoUpdaterImpl extends events.EventEmitter implements IAutoUp
 		this.emit('checking-for-update');
 
 		const proxyUrl = Settings.getValue('http.proxy');
-		const strictSSL = Settings.getValue('http.proxy.strictSSL', true);
+		const strictSSL = Settings.getValue('http.proxyStrictSSL', true);
 		const agent = getProxyAgent(this.url, { proxyUrl, strictSSL });
 
 		this.currentRequest = json<IUpdate>({ url: this.url, agent })
@@ -71,10 +77,11 @@ export class Win32AutoUpdaterImpl extends events.EventEmitter implements IAutoUp
 								return TPromise.as(updatePackagePath);
 							}
 
+							const url = update.url;
 							const downloadPath = `${updatePackagePath}.tmp`;
-							const agent = getProxyAgent(update.url, { proxyUrl, strictSSL });
+							const agent = getProxyAgent(url, { proxyUrl, strictSSL });
 
-							return download(downloadPath, { url: update.url, agent })
+							return download(downloadPath, { url, agent, strictSSL })
 								.then(() => pfs.rename(downloadPath, updatePackagePath))
 								.then(() => updatePackagePath);
 						});
@@ -102,7 +109,7 @@ export class Win32AutoUpdaterImpl extends events.EventEmitter implements IAutoUp
 	}
 
 	private getUpdatePackagePath(version: string): TPromise<string> {
-		return this.cachePath.then(cachePath => path.join(cachePath, `CodeSetup-${ version }.exe`));
+		return this.cachePath.then(cachePath => path.join(cachePath, `CodeSetup-${version}.exe`));
 	}
 
 	private quitAndUpdate(updatePackagePath: string): void {

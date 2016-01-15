@@ -9,18 +9,18 @@ import * as assert from 'assert';
 import {setUnexpectedErrorHandler, errorHandler} from 'vs/base/common/errors';
 import {create} from 'vs/base/common/types';
 import URI from 'vs/base/common/uri';
-import * as types from 'vs/workbench/api/common/extHostTypes';
+import * as types from 'vs/workbench/api/node/extHostTypes';
 import {Range as CodeEditorRange} from 'vs/editor/common/core/range';
 import * as EditorCommon from 'vs/editor/common/editorCommon';
 import {Model as EditorModel} from 'vs/editor/common/model/model';
-import threadService from './testThreadService'
+import {TestThreadService} from './testThreadService'
 import {create as createInstantiationService} from 'vs/platform/instantiation/common/instantiationService';
 import {MarkerService} from 'vs/platform/markers/common/markerService';
 import {IMarkerService} from 'vs/platform/markers/common/markers';
 import {IThreadService} from 'vs/platform/thread/common/thread';
-import {ExtHostLanguageFeatures, MainThreadLanguageFeatures} from 'vs/workbench/api/common/extHostLanguageFeatures';
-import {ExtHostCommands, MainThreadCommands} from 'vs/workbench/api/common/extHostCommands';
-import {ExtHostModelService} from 'vs/workbench/api/common/extHostDocuments';
+import {ExtHostLanguageFeatures, MainThreadLanguageFeatures} from 'vs/workbench/api/node/extHostLanguageFeatures';
+import {ExtHostCommands, MainThreadCommands} from 'vs/workbench/api/node/extHostCommands';
+import {ExtHostModelService} from 'vs/workbench/api/node/extHostDocuments';
 import {OutlineRegistry, getOutlineEntries} from 'vs/editor/contrib/quickOpen/common/quickOpen';
 import {getCodeLensData} from 'vs/editor/contrib/codelens/common/codelens';
 import {getDeclarationsAtPosition} from 'vs/editor/contrib/goToDeclaration/common/goToDeclaration';
@@ -47,6 +47,7 @@ const model: EditorCommon.IModel = new EditorModel(
 let extHost: ExtHostLanguageFeatures;
 let mainThread: MainThreadLanguageFeatures;
 let disposables: vscode.Disposable[] = [];
+let threadService: TestThreadService;
 let originalErrorHandler: (e: any) => any;
 
 suite('ExtHostLanguageFeatures', function() {
@@ -54,7 +55,7 @@ suite('ExtHostLanguageFeatures', function() {
 	suiteSetup(() => {
 
 		let instantiationService = createInstantiationService();
-		threadService.setInstantiationService(instantiationService);
+		threadService = new TestThreadService(instantiationService);
 		instantiationService.addSingleton(IMarkerService, new MarkerService(threadService));
 		instantiationService.addSingleton(IThreadService, threadService);
 

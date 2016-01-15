@@ -26,7 +26,7 @@ function resolveChildren(debugService: debug.IDebugService, parent: debug.IExpre
 		return arrays.distinct(response.body.variables, v => v.name).map(
 			v => new Variable(parent, v.variablesReference, v.name, v.value)
 		);
-	}, (e: Error) => [new Variable(parent, 0, null, e.message)]);
+	}, (e: Error) => [new Variable(parent, 0, null, e.message, false)]);
 }
 
 function massageValue(value: string): string {
@@ -64,10 +64,10 @@ export function getFullExpressionName(expression: debug.IExpression, sessionType
 
 export class Thread implements debug.IThread {
 
-	public exception: boolean;
+	public stoppedReason: string;
 
 	constructor(public name: string, public threadId, public callStack: debug.IStackFrame[]) {
-		this.exception = false;
+		this.stoppedReason = undefined;
 	}
 
 	public getId(): string {
@@ -192,7 +192,7 @@ export class Variable implements debug.IExpression {
 	public value: string;
 	public valueChanged: boolean;
 
-	constructor(public parent: debug.IExpressionContainer, public reference: number, public name: string, value: string) {
+	constructor(public parent: debug.IExpressionContainer, public reference: number, public name: string, value: string, public available = true) {
 		this.children = null;
 		this.value = massageValue(value);
 		this.valueChanged = Variable.allValues[this.getId()] && Variable.allValues[this.getId()] !== value;
@@ -335,7 +335,7 @@ export class Model extends ee.EventEmitter implements debug.IModel {
 				delete this.threads[reference];
 			} else {
 				this.threads[reference].callStack = [];
-				this.threads[reference].exception = false;
+				this.threads[reference].stoppedReason = undefined;
 			}
 		} else {
 			if (removeThreads) {
@@ -345,7 +345,7 @@ export class Model extends ee.EventEmitter implements debug.IModel {
 				for (let ref in this.threads) {
 					if (this.threads.hasOwnProperty(ref)) {
 						this.threads[ref].callStack = [];
-						this.threads[ref].exception = false;
+						this.threads[ref].stoppedReason = undefined;
 					}
 				}
 			}
@@ -376,7 +376,7 @@ export class Model extends ee.EventEmitter implements debug.IModel {
 	}
 
 	public addBreakpoints(rawData: debug.IRawBreakpoint[]): void {
-		this.breakpoints = this.breakpoints.concat(rawData.map(rawBp => new Breakpoint(Source.fromUri(rawBp.uri), rawBp.lineNumber, rawBp.enabled, rawBp.condition)));
+		this.breakpoints = this.breakpoints.concat(rawData.map(rawBp => new Breakpoint(new Source(Source.toRawSource(rawBp.uri, this)), rawBp.lineNumber, rawBp.enabled, rawBp.condition)));
 		this.breakpointsActivated = true;
 		this.emit(debug.ModelEvents.BREAKPOINTS_UPDATED);
 	}
@@ -610,13 +610,13 @@ export class Model extends ee.EventEmitter implements debug.IModel {
 			this.threads[data.threadId].callStack = data.callStack.map(
 				(rsf, level) => {
 					if (!rsf) {
-						return new StackFrame(data.threadId, 0, Source.fromUri(uri.parse('unknown')), nls.localize('unknownStack', "Unknown stack location"), undefined, undefined);
+						return new StackFrame(data.threadId, 0, new Source({ name: 'unknown' }), nls.localize('unknownStack', "Unknown stack location"), undefined, undefined);
 					}
-
-					return new StackFrame(data.threadId, rsf.id, rsf.source ? Source.fromRawSource(rsf.source) : Source.fromUri(uri.parse('unknown')), rsf.name, rsf.line, rsf.column);
+					
+					return new StackFrame(data.threadId, rsf.id, rsf.source ? new Source(rsf.source) : new Source({ name: 'unknown' }), rsf.name, rsf.line, rsf.column);
 				});
 
-			this.threads[data.threadId].exception = data.exception;
+			this.threads[data.threadId].stoppedReason = data.stoppedReason;
 		}
 
 		this.emit(debug.ModelEvents.CALLSTACK_UPDATED);

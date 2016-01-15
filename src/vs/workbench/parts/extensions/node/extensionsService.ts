@@ -18,7 +18,7 @@ import { extract, buffer } from 'vs/base/node/zip';
 import { Promise, TPromise } from 'vs/base/common/winjs.base';
 import { IExtensionsService, IExtension, IExtensionManifest, IGalleryInformation } from 'vs/workbench/parts/extensions/common/extensions';
 import { download } from 'vs/base/node/request';
-import { getProxyAgent } from 'vs/workbench/node/proxy';
+import { getProxyAgent } from 'vs/base/node/proxy';
 import { IWorkspaceContextService } from 'vs/workbench/services/workspace/common/contextService';
 import { Limiter } from 'vs/base/common/async';
 import Event, { Emitter } from 'vs/base/common/event';
@@ -127,21 +127,24 @@ export class ExtensionsService implements IExtensionsService {
 
 		const settings = TPromise.join([
 			UserSettings.getValue(this.contextService, 'http.proxy'),
-			UserSettings.getValue(this.contextService, 'http.proxy.strictSSL')
+			UserSettings.getValue(this.contextService, 'http.proxyStrictSSL')
 		]);
 
-		return settings
-			.then(settings => ({ proxyUrl: settings[0], strictSSL: settings[1] }))
-			.then(options => getProxyAgent(url, options))
-			.then(agent => download(zipPath, { url, agent }))
-			.then(() => validate(zipPath, extension))
-			.then(manifest => { this._onInstallExtension.fire(manifest); return manifest; })
-			.then(manifest => extract(zipPath, extensionPath, { sourcePath: 'extension', overwrite: true }).then(() => manifest))
-			.then(manifest => {
-				manifest = assign({ __metadata: galleryInformation }, manifest);
-				return pfs.writeFile(manifestPath, JSON.stringify(manifest, null, '\t'));
-			})
-			.then(() => { this._onDidInstallExtension.fire(extension); return extension; });
+		return settings.then(settings => {
+			const proxyUrl: string = settings[0];
+			const strictSSL: boolean = settings[1];
+			const agent = getProxyAgent(url, { proxyUrl, strictSSL });
+
+			return download(zipPath, { url, agent, strictSSL })
+				.then(() => validate(zipPath, extension))
+				.then(manifest => { this._onInstallExtension.fire(manifest); return manifest; })
+				.then(manifest => extract(zipPath, extensionPath, { sourcePath: 'extension', overwrite: true }).then(() => manifest))
+				.then(manifest => {
+					manifest = assign({ __metadata: galleryInformation }, manifest);
+					return pfs.writeFile(manifestPath, JSON.stringify(manifest, null, '\t'));
+				})
+				.then(() => { this._onDidInstallExtension.fire(extension); return extension; });
+		});
 	}
 
 	private installFromZip(zipPath: string): TPromise<IExtension> {

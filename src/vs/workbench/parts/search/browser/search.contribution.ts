@@ -15,14 +15,14 @@ import {asFileResource} from 'vs/workbench/parts/files/common/files';
 import {SyncActionDescriptor, DeferredAction} from 'vs/platform/actions/common/actions';
 import {Separator} from 'vs/base/browser/ui/actionbar/actionbar';
 import {Scope, IActionBarRegistry, Extensions as ActionBarExtensions, ActionBarContributor} from 'vs/workbench/browser/actionBarRegistry';
-import {IWorkbenchActionRegistry, Extensions as ActionExtensions} from 'vs/workbench/browser/actionRegistry';
+import {IWorkbenchActionRegistry, Extensions as ActionExtensions} from 'vs/workbench/common/actionRegistry';
 import {QuickOpenHandlerDescriptor, IQuickOpenRegistry, Extensions as QuickOpenExtensions} from 'vs/workbench/browser/quickopen';
 import {QuickOpenAction} from 'vs/workbench/browser/actions/quickOpenAction';
 import {KeybindingsRegistry} from 'vs/platform/keybinding/common/keybindingsRegistry';
 import {IInstantiationService} from 'vs/platform/instantiation/common/instantiation';
 import {AsyncDescriptor} from 'vs/platform/instantiation/common/descriptors';
 import {IWorkspaceContextService} from 'vs/platform/workspace/common/workspace';
-import {IKeybindings} from 'vs/platform/keybinding/common/keybindingService';
+import {KbExpr, IKeybindings} from 'vs/platform/keybinding/common/keybindingService';
 import {IQuickOpenService} from 'vs/workbench/services/quickopen/common/quickOpenService';
 import {IViewletService} from 'vs/workbench/services/viewlet/common/viewletService';
 import {IWorkbenchEditorService} from 'vs/workbench/services/editor/common/editorService';
@@ -33,7 +33,7 @@ export const VIEWLET_ID = 'workbench.view.search';
 KeybindingsRegistry.registerCommandDesc({
 	id: 'workbench.action.search.toggleQueryDetails',
 	weight: KeybindingsRegistry.WEIGHT.workbenchContrib(),
-	context: [{ key: 'searchViewletVisible' }],
+	context: KbExpr.has('searchViewletVisible'),
 	primary: KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KEY_J,
 	handler: accessor => {
 		let viewletService = accessor.get(IViewletService);
@@ -196,11 +196,6 @@ configurationRegistry.registerConfiguration({
 					}
 				]
 			}
-		},
-		'filePicker.alternateFileNameMatching': {
-			'type': 'boolean',
-			'default': false,
-			'description': nls.localize('enableFuzzy', "Experimental support for fuzzy matching of file names in the file picker.")
 		}
 	}
 });

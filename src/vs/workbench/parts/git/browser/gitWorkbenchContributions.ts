@@ -23,7 +23,7 @@ import viewlet = require('vs/workbench/browser/viewlet');
 import statusbar = require('vs/workbench/browser/parts/statusbar/statusbar');
 import platform = require('vs/platform/platform');
 import widgets = require('vs/workbench/parts/git/browser/gitWidgets');
-import wbar = require('vs/workbench/browser/actionRegistry');
+import wbar = require('vs/workbench/common/actionRegistry');
 import gitoutput = require('vs/workbench/parts/git/browser/gitOutput');
 import output = require('vs/workbench/parts/output/common/output');
 import {SyncActionDescriptor} from 'vs/platform/actions/common/actions';
@@ -458,7 +458,8 @@ export function registerContributions(): void {
 		new SyncActionDescriptor(OpenGitViewletAction, OpenGitViewletAction.ID, OpenGitViewletAction.LABEL, {
 			primary: null,
 			win: { primary: KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KEY_G },
-			linux: { primary: KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KEY_G }
+			linux: { primary: KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KEY_G },
+			mac: { primary: KeyMod.WinCtrl | KeyMod.Shift | KeyCode.KEY_G }
 		}),
 		nls.localize('view', "View")
 	);

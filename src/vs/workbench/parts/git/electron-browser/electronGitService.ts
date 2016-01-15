@@ -20,7 +20,7 @@ import { RawGitService, DelayedRawGitService } from 'vs/workbench/parts/git/node
 import URI from 'vs/base/common/uri';
 import { spawn, exec } from 'child_process';
 import { join } from 'path';
-import * as remote from 'remote';
+import { remote } from 'electron';
 
 function findSpecificGit(gitPath: string): Promise {
 	return new Promise((c, e) => {
@@ -52,7 +52,14 @@ function findGitDarwin(): Promise {
 					return e('git not found');
 				}
 
-				return c(gitPath);
+				// make sure git executes
+				exec('git --version', err => {
+					if (err) {
+						return e('git not found');
+					}
+
+					return c(gitPath);
+				});
 			});
 		});
 	});

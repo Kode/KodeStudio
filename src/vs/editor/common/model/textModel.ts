@@ -124,6 +124,7 @@ export class TextModel extends OrderGuaranteeEventEmitter implements EditorCommo
 			range: new Range(startLineNumber, startColumn, endLineNumber, endColumn),
 			rangeLength: rangeLength,
 			text: text,
+			eol: this._EOL,
 			versionId: this.getVersionId(),
 			isUndoing: isUndoing,
 			isRedoing: isRedoing
@@ -849,37 +850,12 @@ export class TextModel extends OrderGuaranteeEventEmitter implements EditorCommo
 		throw new Error('Unknown EOL preference');
 	}
 
-	private _toRegExp(searchString:string, isRegex:boolean, matchCase:boolean, wholeWord:boolean): RegExp {
-		if (searchString === '') {
-			return null;
-		}
-
-		// Try to create a RegExp out of the params
-		var regex:RegExp = null;
-		try {
-			regex = Strings.createRegExp(searchString, isRegex, matchCase, wholeWord);
-		} catch (err) {
-			return null;
-		}
-
-		// Guard against endless loop RegExps & wrap around try-catch as very long regexes produce an exception when executed the first time
-		try {
-			if (Strings.regExpLeadsToEndlessLoop(regex)) {
-				return null;
-			}
-		} catch (err) {
-			return null;
-		}
-
-		return regex;
-	}
-
 	public findMatches(searchString:string, rawSearchScope:any, isRegex:boolean, matchCase:boolean, wholeWord:boolean, limitResultCount:number = LIMIT_FIND_COUNT): EditorCommon.IEditorRange[] {
 		if (this._isDisposed) {
 			throw new Error('Model.findMatches: Model is disposed');
 		}
 
-		var regex = this._toRegExp(searchString, isRegex, matchCase, wholeWord);
+		var regex = Strings.createSafeRegExp(searchString, isRegex, matchCase, wholeWord);
 		if (!regex) {
 			return [];
 		}
@@ -899,7 +875,7 @@ export class TextModel extends OrderGuaranteeEventEmitter implements EditorCommo
 			throw new Error('Model.findNextMatch: Model is disposed');
 		}
 
-		var regex = this._toRegExp(searchString, isRegex, matchCase, wholeWord);
+		var regex = Strings.createSafeRegExp(searchString, isRegex, matchCase, wholeWord);
 		if (!regex) {
 			return null;
 		}
@@ -921,6 +897,41 @@ export class TextModel extends OrderGuaranteeEventEmitter implements EditorCommo
 			var lineIndex = (startLineNumber + i - 1) % lineCount;
 			text = this._lines[lineIndex].text;
 			r = this._findMatchInLine(regex, text, lineIndex + 1, 0);
+			if (r) {
+				return r;
+			}
+		}
+
+		return null;
+	}
+
+	public findPreviousMatch(searchString:string, rawSearchStart:EditorCommon.IPosition, isRegex:boolean, matchCase:boolean, wholeWord:boolean): EditorCommon.IEditorRange {
+		if (this._isDisposed) {
+			throw new Error('Model.findPreviousMatch: Model is disposed');
+		}
+
+		var regex = Strings.createSafeRegExp(searchString, isRegex, matchCase, wholeWord);
+		if (!regex) {
+			return null;
+		}
+
+		var searchStart = this.validatePosition(rawSearchStart),
+			lineCount = this.getLineCount(),
+			startLineNumber = searchStart.lineNumber,
+			text: string,
+			r: EditorCommon.IEditorRange;
+
+		// Look in first line
+		text = this._lines[startLineNumber - 1].text.substring(0, searchStart.column - 1);
+		r = this._findLastMatchInLine(regex, text, startLineNumber);
+		if (r) {
+			return r;
+		}
+
+		for (var i = 1; i < lineCount; i++) {
+			var lineIndex = (lineCount + startLineNumber - i - 1) % lineCount;
+			text = this._lines[lineIndex].text;
+			r = this._findLastMatchInLine(regex, text, lineIndex + 1);
 			if (r) {
 				return r;
 			}
@@ -965,6 +976,19 @@ export class TextModel extends OrderGuaranteeEventEmitter implements EditorCommo
 			return null;
 		}
 		return new Range(lineNumber, m.index + 1 + deltaOffset, lineNumber, m.index + 1 + m[0].length + deltaOffset);
+	}
+
+	private _findLastMatchInLine(searchRegex:RegExp, text:string, lineNumber:number): EditorCommon.IEditorRange {
+		let bestResult: EditorCommon.IEditorRange = null;
+		let m:RegExpExecArray;
+		while ((m = searchRegex.exec(text))) {
+			let result = new Range(lineNumber, m.index + 1, lineNumber, m.index + 1 + m[0].length);
+			if (result.equalsRange(bestResult)) {
+				break;
+			}
+			bestResult = result;
+		}
+		return bestResult;
 	}
 
 	private _findMatchesInLine(searchRegex:RegExp, text:string, lineNumber:number, deltaOffset:number, counter:number, result:EditorCommon.IEditorRange[], limitResultCount:number): number {

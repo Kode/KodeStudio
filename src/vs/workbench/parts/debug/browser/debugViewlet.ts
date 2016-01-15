@@ -14,7 +14,7 @@ import events = require('vs/base/common/events');
 import actions = require('vs/base/common/actions');
 import actionbar = require('vs/base/browser/ui/actionbar/actionbar');
 import actionbarregistry = require('vs/workbench/browser/actionBarRegistry');
-import tree = require('vs/base/parts/tree/common/tree');
+import tree = require('vs/base/parts/tree/browser/tree');
 import treeimpl = require('vs/base/parts/tree/browser/treeImpl');
 import splitview = require('vs/base/browser/ui/splitview/splitview');
 import memento = require('vs/workbench/common/memento');
@@ -246,10 +246,11 @@ class CallStackView extends viewlet.CollapsibleViewletView {
 		this.toDispose.push(debugModel.addListener2(debug.ModelEvents.CALLSTACK_UPDATED, () => {
 			this.tree.refresh().done(null, errors.onUnexpectedError);
 		}));
-		this.toDispose.push(this.debugService.addListener2(debug.ServiceEvents.STATE_CHANGED, (reason: string) => {
-			if (this.debugService.getState() === debug.State.Stopped && reason !== 'step') {
-				this.messageBox.textContent = nls.localize('debugStopped', "Paused on {0}.", reason);
-				reason === 'exception' ? this.messageBox.classList.add('exception') : this.messageBox.classList.remove('exception');
+		this.toDispose.push(this.debugService.getViewModel().addListener2(debug.ViewModelEvents.FOCUSED_STACK_FRAME_UPDATED, () => {
+			const focussedThread = this.debugService.getModel().getThreads()[this.debugService.getViewModel().getFocusedThreadId()];
+			if (focussedThread && focussedThread.stoppedReason && focussedThread.stoppedReason !== 'step') {
+				this.messageBox.textContent = nls.localize('debugStopped', "Paused on {0}.", focussedThread.stoppedReason);
+				focussedThread.stoppedReason === 'exception' ? this.messageBox.classList.add('exception') : this.messageBox.classList.remove('exception');
 
 				this.messageBox.hidden = false;
 				return;
@@ -398,7 +399,7 @@ class BreakpointsView extends viewlet.AdaptiveCollapsibleViewletView {
 	}
 
 	private static getExpandedBodySize(length: number): number {
-		return Math.min(BreakpointsView.MAX_VISIBLE_FILES, length) * 24;
+		return Math.min(BreakpointsView.MAX_VISIBLE_FILES, length) * 22;
 	}
 
 	public shutdown(): void {

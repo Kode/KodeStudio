@@ -14,12 +14,12 @@ import strings = require('vs/base/common/strings');
 import {isWindows} from 'vs/base/common/platform';
 import URI from 'vs/base/common/uri';
 import {Action} from 'vs/base/common/actions';
-import {UntitledEditorModel} from 'vs/workbench/browser/parts/editor/untitledEditorModel';
+import {UntitledEditorModel} from 'vs/workbench/common/editor/untitledEditorModel';
 import {IEventService} from 'vs/platform/event/common/event';
 import {TextFileService as AbstractTextFileService} from 'vs/workbench/parts/files/browser/textFileServices';
-import {CACHE, TextFileEditorModel} from 'vs/workbench/parts/files/browser/editors/textFileEditorModel';
+import {CACHE, TextFileEditorModel} from 'vs/workbench/parts/files/common/editors/textFileEditorModel';
 import {ITextFileOperationResult, ConfirmResult} from 'vs/workbench/parts/files/common/files';
-import {IWorkbenchActionRegistry, Extensions as ActionExtensions} from 'vs/workbench/browser/actionRegistry';
+import {IWorkbenchActionRegistry, Extensions as ActionExtensions} from 'vs/workbench/common/actionRegistry';
 import {SyncActionDescriptor} from 'vs/platform/actions/common/actions';
 import {IUntitledEditorService} from 'vs/workbench/services/untitled/common/untitledEditorService';
 import {IFileService} from 'vs/platform/files/common/files';
@@ -29,10 +29,7 @@ import {ILifecycleService} from 'vs/platform/lifecycle/common/lifecycle';
 import {ITelemetryService} from 'vs/platform/telemetry/common/telemetry';
 import {IConfigurationService, IConfigurationServiceEvent, ConfigurationServiceEventTypes} from 'vs/platform/configuration/common/configuration';
 
-import remote = require('remote');
-import ipc = require('ipc');
-
-const Dialog = remote.require('dialog');
+import {remote} from 'electron';
 
 export class TextFileService extends AbstractTextFileService {
 
@@ -172,8 +169,8 @@ export class TextFileService extends AbstractTextFileService {
 		// Windows: Save | Don't Save | Cancel
 		// Mac/Linux: Save | Cancel | Don't
 
-		const save = { label: resourcesToConfirm.length > 1 ? nls.localize('saveAll', "Save All") : nls.localize('save', "Save"), result: ConfirmResult.SAVE };
-		const dontSave = { label: nls.localize('dontSave', "Don't Save"), result: ConfirmResult.DONT_SAVE };
+		const save = { label: resourcesToConfirm.length > 1 ? this.mnemonicLabel(nls.localize('saveAll', "&&Save All")) : this.mnemonicLabel(nls.localize('save', "&&Save")), result: ConfirmResult.SAVE };
+		const dontSave = { label: this.mnemonicLabel(nls.localize('dontSave', "Do&&n't Save")), result: ConfirmResult.DONT_SAVE };
 		const cancel = { label: nls.localize('cancel', "Cancel"), result: ConfirmResult.CANCEL };
 
 		const buttons = [save];
@@ -183,7 +180,7 @@ export class TextFileService extends AbstractTextFileService {
 			buttons.push(cancel, dontSave);
 		}
 
-		let opts: remote.IMessageBoxOptions = {
+		let opts: Electron.Dialog.ShowMessageBoxOptions = {
 			title: this.contextService.getConfiguration().env.appName,
 			message: message.join('\n'),
 			type: 'warning',
@@ -193,9 +190,17 @@ export class TextFileService extends AbstractTextFileService {
 			cancelId: buttons.indexOf(cancel)
 		};
 
-		const choice = Dialog.showMessageBox(remote.getCurrentWindow(), opts);
+		const choice = remote.dialog.showMessageBox(remote.getCurrentWindow(), opts);
 
 		return buttons[choice].result;
+	}
+
+	private mnemonicLabel(label: string): string {
+		if (!isWindows) {
+			return label.replace(/&&/g, ''); // no mnemonic support on mac/linux in buttons yet
+		}
+
+		return label.replace(/&&/g, '&');
 	}
 
 	public saveAll(includeUntitled?: boolean): TPromise<ITextFileOperationResult>;
@@ -358,18 +363,18 @@ export class TextFileService extends AbstractTextFileService {
 
 	private promptForPathAsync(defaultPath?: string): TPromise<string> {
 		return new TPromise<string>((c, e) => {
-			Dialog.showSaveDialog(remote.getCurrentWindow(), this.getSaveDialogOptions(defaultPath ? paths.normalize(defaultPath, true) : void 0), (path) => {
+			remote.dialog.showSaveDialog(remote.getCurrentWindow(), this.getSaveDialogOptions(defaultPath ? paths.normalize(defaultPath, true) : void 0), (path) => {
 				c(path);
 			});
 		});
 	}
 
 	private promptForPathSync(defaultPath?: string): string {
-		return Dialog.showSaveDialog(remote.getCurrentWindow(), this.getSaveDialogOptions(defaultPath ? paths.normalize(defaultPath, true) : void 0));
+		return remote.dialog.showSaveDialog(remote.getCurrentWindow(), this.getSaveDialogOptions(defaultPath ? paths.normalize(defaultPath, true) : void 0));
 	}
 
-	private getSaveDialogOptions(defaultPath?: string): remote.ISaveDialogOptions {
-		let options: remote.ISaveDialogOptions = {
+	private getSaveDialogOptions(defaultPath?: string): Electron.Dialog.SaveDialogOptions {
+		let options: Electron.Dialog.SaveDialogOptions = {
 			defaultPath: defaultPath
 		};
 

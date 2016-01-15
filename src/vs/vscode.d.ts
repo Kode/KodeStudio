@@ -643,6 +643,11 @@ declare namespace vscode {
 		color?: string;
 
 		/**
+		 * CSS styling property that will be applied to text enclosed by a decoration.
+		 */
+		letterSpacing?: string;
+
+		/**
 		 * An **absolute path** to an image to be rendered in the gutterIconPath.
 		 */
 		gutterIconPath?: string;
@@ -1018,20 +1023,55 @@ declare namespace vscode {
 	}
 
 	/**
+	 * A text document content provider allows to add readonly documents
+	 * to the editor, such as source from a dll or generated html from md.
+	 *
+	 * Content providers are [registered](#workbench.registerTextDocumentContentProvider)
+	 * for a [uri-scheme](#Uri.scheme). When a uri with that scheme is to
+	 * be [loaded](#workbench.openTextDocument) the content provider is
+	 * asked.
+	 */
+	export interface TextDocumentContentProvider {
+
+		/**
+		 * An event to signal a resource has changed.
+		 */
+		onDidChange?: Event<Uri>;
+
+		/**
+		 * Provide textual content for a given uri.
+		 *
+		 * The editor will use the returned string-content to create a readonly
+		 * [document](TextDocument). Resources allocated should be released when
+		 * the corresponding document has been [closed](#workbench.onDidCloseTextDocument).
+		 *
+		 * @param uri An uri which scheme matches the scheme this provider was [registered](#workspace.registerTextDocumentContentProvider) for.
+		 * @param token A cancellation token.
+		 * @return A string or a thenable that resolves to such.
+		 */
+		provideTextDocumentContent(uri: Uri, token: CancellationToken): string | Thenable<string>;
+	}
+
+	/**
 	 * Represents an item that can be selected from
 	 * a list of items.
 	 */
 	export interface QuickPickItem {
 
 		/**
-		 * A label. Will be rendered prominent.
+		 * A human readable string which is rendered prominent.
 		 */
 		label: string;
 
 		/**
-		 * A description. Will be rendered less prominent.
+		 * A human readable string which is rendered less prominent.
 		 */
 		description: string;
+
+		/**
+		 * A human readable string which is rendered less prominent.
+		 */
+		detail?: string;
 	}
 
 	/**
@@ -1044,9 +1084,19 @@ declare namespace vscode {
 		matchOnDescription?: boolean;
 
 		/**
+		 * An optional flag to include the detail when filtering the picks.
+		 */
+		matchOnDetail?: boolean;
+
+		/**
 		 * An optional string to show as place holder in the input box to guide the user what to pick on.
 		 */
 		placeHolder?: string;
+
+		/**
+		 * An optional function that is invoked whenever an item is selected.
+		 */
+		onDidSelectItem?: <T extends QuickPickItem>(item: T | string) => any;
 	}
 
 	/**
@@ -1089,6 +1139,16 @@ declare namespace vscode {
 		 * Set to true to show a password prompt that will not show the typed value.
 		 */
 		password?: boolean;
+
+		/**
+		 * An optional function that will be called to valide input and to give a hint
+		 * to the user.
+		 *
+		 * @param value The current value of the input box.
+		 * @return A human readable string which is presented as diagnostic message.
+		 * Return `undefined`, `null`, or the empty string when 'value' is valid.
+		 */
+		validateInput?: (value: string) => string;
 	}
 
 	/**
@@ -3005,6 +3065,17 @@ declare namespace vscode {
 		export function openTextDocument(fileName: string): Thenable<TextDocument>;
 
 		/**
+		 * Register a text document content provider.
+		 *
+		 * Only one provider can be registered per scheme.
+		 *
+		 * @param scheme The uri-scheme to register for.
+		 * @param provider A content provider.
+		 * @return A [disposable](#Disposable) that unregisters this provider when being disposed.
+		 */
+		export function registerTextDocumentContentProvider(scheme: string, provider: TextDocumentContentProvider): Disposable;
+
+		/**
 		 * An event that is emitted when a [text document](#TextDocument) is opened.
 		 */
 		export const onDidOpenTextDocument: Event<TextDocument>;
@@ -3319,7 +3390,6 @@ declare namespace vscode {
 	 *
 	 * ```javascript
 	 * export function activate(context: vscode.ExtensionContext) {
-	 *
 	 * 		let api = {
 	 * 			sum(a, b) {
 	 * 				return a + b;
@@ -3328,7 +3398,6 @@ declare namespace vscode {
 	 * 				return a * b;
 	 * 			}
 	 * 		};
-	 *
 	 * 		// 'export' public api-surface
 	 *		return api;
 	 * }
@@ -3373,6 +3442,7 @@ declare namespace vscode {
 // export = vscode;
 
 // when used for JS*
+// !!! DO NOT MODIFY ABOVE COMMENT ("when used for JS*") IT IS BEING USED TO DETECT JS* ONLY CHANGES !!!
 declare module 'vscode' {
 	export = vscode;
 }

@@ -34,6 +34,8 @@ class ConfigClass implements IConfiguration {
 			},
 			overviewRulerLanes: 2,
 			cursorBlinking: 'blink',
+			cursorStyle: 'line',
+			fontLigatures: false,
 			hideCursorInOverviewRuler: false,
 			scrollBeyondLastLine: true,
 			automaticLayout: false,

@@ -20,25 +20,22 @@ import {getPathLabel} from 'vs/base/common/labels';
 import diagnostics = require('vs/base/common/diagnostics');
 import {Action, IAction} from 'vs/base/common/actions';
 import {MessageType, IInputValidator} from 'vs/base/browser/ui/inputbox/inputBox';
-import {ITree, IHighlightEvent} from 'vs/base/parts/tree/common/tree';
+import {ITree, IHighlightEvent} from 'vs/base/parts/tree/browser/tree';
 import {disposeAll, IDisposable} from 'vs/base/common/lifecycle';
 import {EventType as WorkbenchEventType, EditorEvent} from 'vs/workbench/common/events';
 import Files = require('vs/workbench/parts/files/common/files');
 import {IFileService, IFileStat, IImportResult} from 'vs/platform/files/common/files';
 import {EditorInputAction} from 'vs/workbench/browser/parts/editor/baseEditor';
-import {IFrameEditor} from 'vs/workbench/browser/parts/editor/iframeEditor';
-import {DiffEditorInput} from 'vs/workbench/browser/parts/editor/diffEditorInput';
+import {DiffEditorInput} from 'vs/workbench/common/editor/diffEditorInput';
 import workbenchEditorCommon = require('vs/workbench/common/editor');
 import {IEditorSelection} from 'vs/editor/common/editorCommon';
 import {FileEditorInput} from 'vs/workbench/parts/files/browser/editors/fileEditorInput';
-import {FileStat, NewStatPlaceholder} from 'vs/workbench/parts/files/common/viewModel';
+import {FileStat, NewStatPlaceholder} from 'vs/workbench/parts/files/common/explorerViewModel';
 import {ExplorerView} from 'vs/workbench/parts/files/browser/views/explorerView';
 import {ExplorerViewlet} from 'vs/workbench/parts/files/browser/explorerViewlet';
-import {CACHE} from 'vs/workbench/parts/files/browser/editors/textFileEditorModel';
-import {HTMLFrameEditorInput} from 'vs/workbench/parts/files/browser/editors/htmlFrameEditorInput';
-import {DerivedFrameEditorInput} from 'vs/workbench/parts/files/browser/editors/derivedFrameEditorInput';
+import {CACHE} from 'vs/workbench/parts/files/common/editors/textFileEditorModel';
 import {IActionProvider} from 'vs/base/parts/tree/browser/actionsRenderer';
-import {WorkingFileEntry, WorkingFilesModel} from 'vs/workbench/parts/files/browser/workingFilesModel';
+import {WorkingFileEntry, WorkingFilesModel} from 'vs/workbench/parts/files/common/workingFilesModel';
 import {IUntitledEditorService} from 'vs/workbench/services/untitled/common/untitledEditorService';
 import {IWorkbenchEditorService} from 'vs/workbench/services/editor/common/editorService';
 import {IQuickOpenService} from 'vs/workbench/services/quickopen/common/quickOpenService';
@@ -709,13 +706,13 @@ export class BaseDeleteFileAction extends BaseFileAction {
 			confirm = {
 				message: this.element.isDirectory ? nls.localize('confirmMoveTrashMessageFolder', "Are you sure you want to delete '{0}' and its contents?", this.element.name) : nls.localize('confirmMoveTrashMessageFile', "Are you sure you want to delete '{0}'?", this.element.name),
 				detail: isWindows ? nls.localize('undoBin', "You can restore from the recycle bin.") : nls.localize('undoTrash', "You can restore from the trash."),
-				primaryButton: isWindows ? nls.localize('deleteButtonLabelRecycleBin', "Move to Recycle Bin") : nls.localize('deleteButtonLabelTrash', "Move to Trash")
+				primaryButton: isWindows ? nls.localize('deleteButtonLabelRecycleBin', "&&Move to Recycle Bin") : nls.localize('deleteButtonLabelTrash', "&&Move to Trash")
 			};
 		} else {
 			confirm = {
 				message: this.element.isDirectory ? nls.localize('confirmDeleteMessageFolder', "Are you sure you want to permanently delete '{0}' and its contents?", this.element.name) : nls.localize('confirmDeleteMessageFile', "Are you sure you want to permanently delete '{0}'?", this.element.name),
 				detail: nls.localize('irreversible', "This action is irreversible!"),
-				primaryButton: nls.localize('deleteButtonLabel', "Delete")
+				primaryButton: nls.localize('deleteButtonLabel', "&&Delete")
 			};
 		}
 
@@ -879,7 +876,7 @@ export class ImportFileAction extends BaseFileAction {
 						let confirm: IConfirmation = {
 							message: nls.localize('confirmOverwrite', "A file or folder with the same name already exists in the destination folder. Do you want to replace it?"),
 							detail: nls.localize('irreversible', "This action is irreversible!"),
-							primaryButton: nls.localize('replaceButtonLabel', "Replace")
+							primaryButton: nls.localize('replaceButtonLabel', "&&Replace")
 						};
 
 						overwrite = this.messageService.confirm(confirm);
@@ -964,65 +961,6 @@ export class FileImportedEvent extends Files.LocalFileChangeEvent {
 
 	public gotDeleted(): boolean {
 		return false;
-	}
-}
-
-// Preview HTML File
-export class PreviewHTMLAction extends Action {
-	private element: IFileStat;
-
-	constructor(
-		element: IFileStat,
-		@IWorkbenchEditorService private editorService: IWorkbenchEditorService,
-		@IInstantiationService private instantiationService: IInstantiationService,
-		@ITextFileService private textFileService: ITextFileService
-	) {
-		super('workbench.files.action.previewHTMLFromExplorer', nls.localize('openPreview', "Open Preview"));
-
-		this.element = element;
-		this.enabled = true;
-	}
-
-	public run(): Promise {
-		let htmlInput = this.instantiationService.createInstance(HTMLFrameEditorInput, this.element.resource);
-
-		let savePromise = Promise.as(null);
-		if (this.textFileService.isDirty(this.element.resource)) {
-			savePromise = this.textFileService.save(this.element.resource);
-		}
-
-		return savePromise.then(() => {
-			return this.editorService.openEditor(htmlInput);
-		});
-	}
-}
-
-export class PreviewHTMLEditorInputAction extends EditorInputAction {
-
-	constructor(
-		@IWorkbenchEditorService private editorService: IWorkbenchEditorService,
-		@IInstantiationService private instantiationService: IInstantiationService,
-		@ITextFileService private textFileService: ITextFileService
-	) {
-		super('workbench.files.action.previewHTMLFromEditor', nls.localize('openPreview', "Open Preview"));
-
-		this.class = 'file-editor-action action-open-preview';
-	}
-
-	public run(event?: any): Promise {
-		let input = <Files.FileEditorInput>this.input;
-
-		let sideBySide = !!(event && (event.ctrlKey || event.metaKey));
-		let htmlInput = this.instantiationService.createInstance(HTMLFrameEditorInput, input.getResource());
-
-		let savePromise = Promise.as(null);
-		if (this.textFileService.isDirty(input.getResource())) {
-			savePromise = this.textFileService.save(input.getResource());
-		}
-
-		return savePromise.then(() => {
-			return this.editorService.openEditor(htmlInput, null, sideBySide);
-		});
 	}
 }
 
@@ -1803,41 +1741,6 @@ export class RevertFileAction extends Action {
 		}
 
 		return Promise.as(true);
-	}
-}
-
-export class ViewDerivedSourceEditorInputAction extends EditorInputAction {
-
-	constructor(
-		@IWorkbenchEditorService private editorService: IWorkbenchEditorService,
-		@IWorkspaceContextService private contextService: IWorkspaceContextService
-	) {
-		super('workbench.files.action.openDerivedResourceFromEditor', nls.localize('viewSource', "View Source"), 'derived-frame-editor-action view-source');
-	}
-
-	public run(event?: any): Promise {
-		let derivedFrameEditorInput = <DerivedFrameEditorInput>this.input;
-		let sideBySide = !!(event && (event.ctrlKey || event.metaKey));
-
-		return this.editorService.openEditor({
-			resource: derivedFrameEditorInput.getResource()
-		}, sideBySide);
-	}
-}
-
-export class RefreshDerivedFrameEditorInputAction extends EditorInputAction {
-
-	constructor( @IWorkbenchEditorService private editorService: IWorkbenchEditorService) {
-		super('workbench.files.action.refreshDerivedFrameEditor', nls.localize('reload', "Reload"), 'derived-frame-editor-action refresh');
-	}
-
-	public run(event?: any): Promise {
-		let editor = this.editorService.getActiveEditor();
-		if (editor instanceof IFrameEditor) {
-			(<IFrameEditor>editor).reload(true);
-		}
-
-		return Promise.as(null);
 	}
 }
 

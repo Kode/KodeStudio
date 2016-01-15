@@ -27,8 +27,8 @@ import { HighlightedLabel } from 'vs/base/browser/ui/highlightedlabel/highlighte
 import { Action } from 'vs/base/common/actions';
 import * as semver from 'semver';
 import { ActionBar } from 'vs/base/browser/ui/actionbar/actionbar';
-import remote = require('remote');
-const shell = remote.require('shell');
+import { shell } from 'electron';
+
 const $ = dom.emmet;
 
 const InstallLabel = nls.localize('install', "Install Extension");
@@ -79,9 +79,16 @@ function extensionEquals(one: IExtension, other: IExtension): boolean {
 	return one.publisher === other.publisher && one.name === other.name;
 }
 
+function extensionEntryCompare(one: IExtensionEntry, other: IExtensionEntry): number {
+	const oneName = one.extension.displayName || one.extension.name;
+	const otherName = other.extension.displayName || other.extension.name;
+	return oneName.localeCompare(otherName);
+}
+
 class OpenInGalleryAction extends Action {
 
 	constructor(
+		private promptToInstall: boolean,
 		@IMessageService protected messageService: IMessageService,
 		@IWorkspaceContextService private contextService: IWorkspaceContextService,
 		@IInstantiationService protected instantiationService: IInstantiationService
@@ -92,6 +99,10 @@ class OpenInGalleryAction extends Action {
 	public run(extension: IExtension): TPromise<any> {
 		const url = `${this.contextService.getConfiguration().env.extensionsGallery.itemUrl}/${ extension.publisher }.${ extension.name }`;
 		shell.openExternal(url);
+
+		if (!this.promptToInstall) {
+			return TPromise.as(null);
+		}
 
 		const hideMessage = this.messageService.show(Severity.Info, {
 			message: nls.localize('installPrompt', "Would you like to install '{0}'?", extension.displayName),
@@ -189,7 +200,7 @@ class Renderer implements IRenderer<IExtensionEntry> {
 			data.actionbar.clear();
 
 			if (entry.extension.galleryInformation) {
-				data.actionbar.push(this.instantiationService.createInstance(OpenInGalleryAction), { label: true, icon: false });
+				data.actionbar.push(this.instantiationService.createInstance(OpenInGalleryAction, entry.state !== ExtensionState.Installed), { label: true, icon: false });
 			}
 
 			switch (entry.state) {
@@ -223,6 +234,7 @@ class Renderer implements IRenderer<IExtensionEntry> {
 		data.disposables.push(this.extensionsService.onDidUninstallExtension(e => onExtensionStateChange(e, ExtensionState.Uninstalled)));
 
 		data.displayName.set(extension.displayName, entry.highlights.displayName);
+		data.displayName.element.title = extension.name;
 		data.version.textContent = extension.version;
 		data.since.textContent = date ? since(new Date(date)) : '';
 		data.author.textContent = publisher;
@@ -278,7 +290,7 @@ class LocalExtensionsModel implements IModel<IExtensionEntry> {
 				highlights,
 				state: ExtensionState.Installed
 			}))
-			.sort((a, b) => a.extension.name.localeCompare(b.extension.name));
+			.sort(extensionEntryCompare);
 	}
 }
 
@@ -351,7 +363,7 @@ class GalleryExtensionsModel implements IModel<IExtensionEntry> {
 						: ExtensionState.Uninstalled
 				};
 			})
-			.sort((a, b) => a.extension.name.localeCompare(b.extension.name));
+			.sort(extensionEntryCompare);
 	}
 }
 
@@ -423,7 +435,7 @@ class OutdatedExtensionsModel implements IModel<IExtensionEntry> {
 				highlights,
 				state: ExtensionState.Outdated
 			}))
-			.sort((a, b) => a.extension.name.localeCompare(b.extension.name));
+			.sort(extensionEntryCompare);
 	}
 }
 

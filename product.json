@@ -1,8 +1,7 @@
 {
 	"nameShort": "Kode Studio",
 	"nameLong": "Kode Studio",
-	"win32ExeBasename": "KodeStudio",
-	"win32MutexName": "korestudio",
+	"win32MutexName": "kodestudio",
 	"companyName": "KTX Software Development",
 	"copyright": "Copyright (C) 2015 KTX Software Development. All rights reserved",
 	"licenseUrl": "https://github.com/Microsoft/vscode/blob/master/LICENSE.txt",

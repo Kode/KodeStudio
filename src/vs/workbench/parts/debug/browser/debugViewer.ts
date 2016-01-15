@@ -18,7 +18,7 @@ import keyboard = require('vs/base/browser/keyboardEvent');
 import labels = require('vs/base/common/labels');
 import actions = require('vs/base/common/actions');
 import actionbar = require('vs/base/browser/ui/actionbar/actionbar');
-import tree = require('vs/base/parts/tree/common/tree');
+import tree = require('vs/base/parts/tree/browser/tree');
 import inputbox = require('vs/base/browser/ui/inputbox/inputBox');
 import treedefaults = require('vs/base/parts/tree/browser/treeDefaults');
 import renderer = require('vs/base/parts/tree/browser/actionsRenderer');
@@ -35,13 +35,13 @@ const $ = dom.emmet;
 const booleanRegex = /^true|false$/i;
 const stringRegex = /^(['"]).*\1$/;
 
-export function renderExpressionValue(tree: tree.ITree, arg2: debug.IExpression|string, debugInactive: boolean, container: HTMLElement): void {
+export function renderExpressionValue(arg2: debug.IExpression|string, debugInactive: boolean, container: HTMLElement): void {
 	let value = typeof arg2 === 'string' ? arg2 : arg2.value;
 
 	// remove stale classes
 	container.className = 'value';
 	// when resolving expressions we represent errors from the server as a variable with name === null.
-	if (value === null || (arg2 instanceof model.Expression && !arg2.available)) {
+	if (value === null || ((arg2 instanceof model.Expression || arg2 instanceof model.Variable) && !arg2.available)) {
 		dom.addClass(container, 'unavailable');
 		debugInactive ? dom.removeClass(container, 'error') : dom.addClass(container, 'error');
 	} else if (!isNaN(+value)) {
@@ -57,9 +57,12 @@ export function renderExpressionValue(tree: tree.ITree, arg2: debug.IExpression|
 }
 
 export function renderVariable(tree: tree.ITree, variable: model.Variable, data: IVariableTemplateData, debugInactive: boolean, showChanged: boolean): void {
-	data.name.textContent = `${variable.name}:`;
+	if (variable.available) {
+		data.name.textContent = `${variable.name}:`;
+	}
+
 	if (variable.value) {
-		renderExpressionValue(tree, variable, debugInactive, data.value);
+		renderExpressionValue(variable, debugInactive, data.value);
 		if (variable.valueChanged && showChanged) {
 			// value changed color has priority over other colors.
 			data.value.className = 'value changed';
@@ -187,11 +190,9 @@ export class CallStackDataSource implements tree.IDataSource {
 
 		const threads = (<model.Model> element).getThreads();
 		const threadsArray: debug.IThread[] = [];
-		for (let reference in threads) {
-			if (threads.hasOwnProperty(reference)) {
-				threadsArray.push(threads[reference]);
-			}
-		}
+		Object.keys(threads).forEach(threadId => {
+			threadsArray.push(threads[threadId]);
+		});
 
 		if (threadsArray.length === 1) {
 			return Promise.as(threadsArray[0].callStack);
@@ -227,7 +228,7 @@ export class CallStackRenderer implements tree.IRenderer {
 	}
 
 	public getHeight(tree:tree.ITree, element:any): number {
-		return 24;
+		return 22;
 	}
 
 	public getTemplateId(tree: tree.ITree, element: any): string {
@@ -379,8 +380,8 @@ export class VariablesRenderer implements tree.IRenderer {
 		// noop
 	}
 
-	public getHeight(tree:tree.ITree, element:any): number {
-		return 24;
+	public getHeight(tree: tree.ITree, element: any): number {
+		return 22;
 	}
 
 	public getTemplateId(tree: tree.ITree, element: any): string {
@@ -540,7 +541,7 @@ export class WatchExpressionsRenderer implements tree.IRenderer {
 	}
 
 	public getHeight(tree:tree.ITree, element:any): number {
-		return 24;
+		return 22;
 	}
 
 	public getTemplateId(tree: tree.ITree, element: any): string {
@@ -586,7 +587,7 @@ export class WatchExpressionsRenderer implements tree.IRenderer {
 	private renderExpression(tree: tree.ITree, expression: debug.IExpression, data: IVariableTemplateData): void {
 		data.name.textContent = `${expression.name}:`;
 		if (expression.value) {
-			renderExpressionValue(tree, expression, this.debugService.getState() === debug.State.Inactive, data.value);
+			renderExpressionValue(expression, this.debugService.getState() === debug.State.Inactive, data.value);
 		}
 	}
 
@@ -763,7 +764,7 @@ export class BreakpointsRenderer implements tree.IRenderer {
 	}
 
 	public getHeight(tree:tree.ITree, element:any): number {
-		return 24;
+		return 22;
 	}
 
 	public getTemplateId(tree: tree.ITree, element: any): string {
@@ -845,6 +846,9 @@ export class BreakpointsRenderer implements tree.IRenderer {
 		data.filePath.textContent = labels.getPathLabel(paths.dirname(breakpoint.source.uri.fsPath), this.contextService);
 		data.checkbox.checked = breakpoint.enabled;
 		data.actionBar.context = breakpoint;
+		if (breakpoint.condition) {
+			data.breakpoint.title = breakpoint.condition;
+		}
 	}
 
 	public disposeTemplate(tree: tree.ITree, templateId: string, templateData: any): void {

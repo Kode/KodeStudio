@@ -14,9 +14,21 @@ export class Source {
 
 	private static INTERNAL_URI_PREFIX = 'debug://internal/';
 
-	constructor(public name: string, uriStr: string, public origin: string, public reference = 0) {
-		this.uri = uri.parse(uriStr);
+	constructor(public raw: DebugProtocol.Source) {
+		this.uri = raw.path ? uri.file(raw.path) : uri.parse(Source.INTERNAL_URI_PREFIX + raw.name);
 		this.available = true;
+	}
+
+	public get name() {
+		return this.raw.name;
+	}
+
+	public get origin() {
+		return this.raw.origin;
+	}
+
+	public get reference() {
+		return this.raw.sourceReference;
 	}
 
 	public get inMemory() {
@@ -24,17 +36,14 @@ export class Source {
 	}
 
 	public static toRawSource(uri: uri, model: IModel): DebugProtocol.Source {
-		// first try to find the raw source amongst the stack frames - since that represenation has more data (source reference),
-		const threads = model.getThreads();
-		for (let threadId in threads) {
-			if (threads.hasOwnProperty(threadId) && threads[threadId].callStack) {
-				const found = threads[threadId].callStack.filter(sf => sf.source.uri.toString() === uri.toString()).pop();
-
-				if (found) {
-					return {
-						name: found.source.name,
-						path: found.source.inMemory ? null : found.source.uri.fsPath,
-						sourceReference: found.source.reference
+		if (model) {
+			// first try to find the raw source amongst the stack frames - since that represenation has more data (source reference),
+			const threads = model.getThreads();
+			for (let threadId in threads) {
+				if (threads.hasOwnProperty(threadId) && threads[threadId].callStack) {
+					const found = threads[threadId].callStack.filter(sf => sf.source.uri.toString() === uri.toString()).pop();
+					if (found) {
+						return found.source.raw;
 					}
 				}
 			}
@@ -43,15 +52,6 @@ export class Source {
 		// did not find the raw source amongst the stack frames, construct the raw stack frame from the limited data you have.
 		return Source.isInMemory(uri) ? { name: Source.getName(uri) } :
 			{ path: paths.normalize(uri.fsPath, true) };
-	}
-
-	public static fromRawSource(rawSource: DebugProtocol.Source): Source {
-		const uriStr = rawSource.path ? uri.file(rawSource.path).toString() : Source.INTERNAL_URI_PREFIX + rawSource.name;
-		return new Source(rawSource.name, uriStr, rawSource.origin, rawSource.sourceReference);
-	}
-
-	public static fromUri(uri: uri): Source {
-		return new Source(Source.getName(uri), uri.toString(), '');
 	}
 
 	private static getName(uri: uri): string {

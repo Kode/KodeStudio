@@ -18,7 +18,7 @@ import comparers = require('vs/base/common/comparers');
 import actions = require('vs/base/common/actions');
 import actionbar = require('vs/base/browser/ui/actionbar/actionbar');
 import countbadge = require('vs/base/browser/ui/countBadge/countBadge');
-import tree = require('vs/base/parts/tree/common/tree');
+import tree = require('vs/base/parts/tree/browser/tree');
 import treednd = require('vs/base/parts/tree/browser/treeDnd');
 import treedefaults = require('vs/base/parts/tree/browser/treeDefaults');
 import actionsrenderer = require('vs/base/parts/tree/browser/actionsRenderer');
@@ -232,7 +232,7 @@ export class Renderer implements tree.IRenderer {
 	}
 
 	public getHeight(tree:tree.ITree, element:any): number {
-		return 24;
+		return 22;
 	}
 
 	public getTemplateId(tree: tree.ITree, element: any): string {
@@ -269,7 +269,10 @@ export class Renderer implements tree.IRenderer {
 		data.actionBar = new actionbar.ActionBar(container, { actionRunner: this.actionRunner });
 		data.actionBar.push(this.actionProvider.getActionsForGroupStatusType(statusType), { icon: true, label: false });
 		data.actionBar.addListener2('run', e => e.error && this.onError(e.error));
-		data.count = new countbadge.CountBadge(container);
+
+		const wrapper = dom.append(container, $('.count-badge-wrapper'));
+		data.count = new countbadge.CountBadge(wrapper);
+
 		data.root = dom.append(container, $('.status-group'));
 
 		switch (statusType) {
@@ -671,7 +674,7 @@ export class Controller extends treedefaults.DefaultController {
 		if (event.shiftKey) {
 			var focus = tree.getFocus();
 
-			if (!focus || focus instanceof gitmodel.StatusGroup) {
+			if (!(focus instanceof gitmodel.FileStatus) || !(element instanceof gitmodel.FileStatus)) {
 				return;
 			}
 

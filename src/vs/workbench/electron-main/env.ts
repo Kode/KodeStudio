@@ -9,7 +9,7 @@ import crypto = require('crypto');
 import fs = require('fs');
 import path = require('path');
 import os = require('os');
-import app = require('app');
+import {app} from 'electron';
 
 import arrays = require('vs/base/common/arrays');
 import strings = require('vs/base/common/strings');
@@ -31,6 +31,7 @@ export interface IProductConfiguration {
 		}
 	};
 	win32AppUserModelId: string;
+	win32MutexName: string;
 	dataFolderName: string;
 	downloadUrl: string;
 	updateUrl: string;
@@ -42,7 +43,7 @@ export interface IProductConfiguration {
 		serviceUrl: string;
 		itemUrl: string;
 	};
-	crashReporter: ICrashReporterConfigBrowser;
+	crashReporter: Electron.CrashReporterStartOptions;
 	welcomePage: string;
 	enableTelemetry: boolean;
 	aiConfig: {
@@ -50,7 +51,6 @@ export interface IProductConfiguration {
 		asimovKey: string;
 	};
 	sendASmile: {
-		submitUrl: string,
 		reportIssueUrl: string,
 		requestFeatureUrl: string
 	};

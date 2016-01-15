@@ -110,7 +110,6 @@ export class DebugService extends ee.EventEmitter implements debug.IDebugService
 	private registerListeners(eventService: IEventService, lifecycleService: ILifecycleService): void {
 		this.toDispose.push(eventService.addListener2(EventType.FILE_CHANGES, (e: FileChangesEvent) => this.onFileChanges(e)));
 
-
 		if (this.taskService) {
 			this.toDispose.push(this.taskService.addListener2(TaskServiceEvents.Active, (e: TaskEvent) => {
 				this.lastTaskEvent = e;
@@ -223,18 +222,18 @@ export class DebugService extends ee.EventEmitter implements debug.IDebugService
 
 	private registerSessionListeners(): void {
 		this.toDispose.push(this.session.addListener2(debug.SessionEvents.INITIALIZED, (event: DebugProtocol.InitializedEvent) => {
-			this.sendAllBreakpoints().done(null, errors.onUnexpectedError);
-			this.sendExceptionBreakpoints().done(null, errors.onUnexpectedError);
+			this.sendAllBreakpoints().then(() => this.sendExceptionBreakpoints()).then(() =>
+				this.session.configurationDone()).done(null, errors.onUnexpectedError);
 		}));
 
 		this.toDispose.push(this.session.addListener2(debug.SessionEvents.STOPPED, (event: DebugProtocol.StoppedEvent) => {
-			this.setStateAndEmit(debug.State.Stopped, event.body.reason);
+			this.setStateAndEmit(debug.State.Stopped);
 			const threadId = event.body.threadId;
 
 			this.getThreadData(threadId).then(() => {
 				this.session.stackTrace({ threadId: threadId, levels: 20 }).done((result) => {
 
-					this.model.rawUpdate({ threadId: threadId, callStack: result.body.stackFrames, exception: event.body && event.body.reason === 'exception' });
+					this.model.rawUpdate({ threadId: threadId, callStack: result.body.stackFrames, stoppedReason: event.body.reason });
 					this.windowService.getWindow().focus();
 					const callStack = this.model.getThreads()[threadId].callStack;
 					if (callStack.length > 0) {
@@ -299,7 +298,7 @@ export class DebugService extends ee.EventEmitter implements debug.IDebugService
 			this.session.threads().then((response: DebugProtocol.ThreadsResponse) => {
 				const thread = response.body.threads.filter(t => t.id === threadId).pop();
 				if (!thread) {
-					throw new Error('Did not get a thread from debug adapter with id ' + threadId);
+					throw new Error(nls.localize('debugNoThread', "Did not get a thread from debug adapter with id {0}.", threadId));
 				}
 
 				this.model.rawUpdate({
@@ -312,7 +311,8 @@ export class DebugService extends ee.EventEmitter implements debug.IDebugService
 	private loadBreakpoints(): debug.IBreakpoint[] {
 		try {
 			return JSON.parse(this.storageService.get(DEBUG_BREAKPOINTS_KEY, StorageScope.WORKSPACE, '[]')).map((breakpoint: any) => {
-				return new model.Breakpoint(new Source(breakpoint.source.name, breakpoint.source.uri, breakpoint.source.reference), breakpoint.desiredLineNumber || breakpoint.lineNumber, breakpoint.enabled, breakpoint.condition);
+				return new model.Breakpoint(new Source(breakpoint.source.raw ? breakpoint.source.raw : { path: uri.parse(breakpoint.source.uri).fsPath, name: breakpoint.source.name }),
+					breakpoint.desiredLineNumber || breakpoint.lineNumber, breakpoint.enabled, breakpoint.condition);
 			});
 		} catch (e) {
 			return [];
@@ -356,9 +356,9 @@ export class DebugService extends ee.EventEmitter implements debug.IDebugService
 		return this.state;
 	}
 
-	private setStateAndEmit(newState: debug.State, data?: any): void {
+	private setStateAndEmit(newState: debug.State): void {
 		this.state = newState;
-		this.emit(debug.ServiceEvents.STATE_CHANGED, data);
+		this.emit(debug.ServiceEvents.STATE_CHANGED);
 	}
 
 	public get enabled(): boolean {
@@ -423,8 +423,12 @@ export class DebugService extends ee.EventEmitter implements debug.IDebugService
 	}
 
 	public editBreakpoint(editor: editorbrowser.ICodeEditor, lineNumber: number): Promise {
-		const breakpointWidget = this.instantiationService.createInstance(BreakpointWidget, editor, lineNumber);
-		breakpointWidget.show({ lineNumber, column: 1 }, 2);
+		if (BreakpointWidget.INSTANCE) {
+			BreakpointWidget.INSTANCE.dispose();
+		}
+
+		this.instantiationService.createInstance(BreakpointWidget, editor, lineNumber);
+		BreakpointWidget.INSTANCE.show({ lineNumber, column: 1 }, 2);
 
 		return Promise.as(true);
 	}
@@ -491,7 +495,7 @@ export class DebugService extends ee.EventEmitter implements debug.IDebugService
 				});
 			}
 			if (!this.configurationManager.getAdapter()) {
-				return Promise.wrapError(new Error(`Configured debug type '${ configuration.type }' is not supported.`));
+				return Promise.wrapError(new Error(nls.localize('debugTypeNotSupported', "Configured debug type {0} is not supported.", configuration.type)));
 			}
 
 			return this.runPreLaunchTask(configuration).then(() => this.doCreateSession(configuration, openViewlet));
@@ -624,8 +628,12 @@ export class DebugService extends ee.EventEmitter implements debug.IDebugService
 		this.setStateAndEmit(debug.State.Inactive);
 
 		// set breakpoints back to unverified since the session ended.
+		// source reference changes across sessions, so we do not use it to persist the source.
 		const data: {[id: string]: { line: number, verified: boolean } } = { };
-		this.model.getBreakpoints().forEach(bp => data[bp.getId()] = { line: bp.lineNumber, verified: false });
+		this.model.getBreakpoints().forEach(bp => {
+			delete bp.source.raw.sourceReference;
+			data[bp.getId()] = { line: bp.lineNumber, verified: false };
+		});
 		this.model.updateBreakpoints(data);
 
 		this.inDebugMode.reset();
@@ -693,7 +701,7 @@ export class DebugService extends ee.EventEmitter implements debug.IDebugService
 
 	private sourceIsUnavailable(source: Source, sideBySide: boolean): Promise {
 		this.model.sourceIsUnavailable(source);
-		const editorInput = this.getDebugStringEditorInput(source, 'Source is not available.', 'text/plain');
+		const editorInput = this.getDebugStringEditorInput(source, nls.localize('debugSourceNotAvailable', "Source is not available."), 'text/plain');
 
 		return this.editorService.openEditor(editorInput, wbeditorcommon.TextEditorOptions.create({ preserveFocus: true }), sideBySide);
 	}
@@ -774,17 +782,17 @@ export class DebugService extends ee.EventEmitter implements debug.IDebugService
 	}
 
 	private sendBreakpoints(modelUri: uri): Promise {
-		if (!this.session) {
+		if (!this.session || !this.session.readyForBreakpoints) {
 			return Promise.as(null);
 		}
 
 		const breakpointsToSend = arrays.distinct(
 			this.model.getBreakpoints().filter(bp => this.model.areBreakpointsActivated() && bp.enabled && bp.source.uri.toString() === modelUri.toString()),
-			bp =>  `${ bp.desiredLineNumber }`
+			bp => `${ bp.desiredLineNumber }`
 		);
+		const rawSource = breakpointsToSend.length > 0 ? breakpointsToSend[0].source.raw : Source.toRawSource(modelUri, null);
 
-
-		return this.session.setBreakpoints({ source: Source.toRawSource(modelUri, this.model), lines: breakpointsToSend.map(bp => bp.desiredLineNumber),
+		return this.session.setBreakpoints({ source: rawSource, lines: breakpointsToSend.map(bp => bp.desiredLineNumber),
 			breakpoints: breakpointsToSend.map(bp => ({ line: bp.desiredLineNumber, condition: bp.condition })) }).then(response => {
 
 			const data: {[id: string]: { line: number, verified: boolean } } = { };
@@ -797,7 +805,7 @@ export class DebugService extends ee.EventEmitter implements debug.IDebugService
 	}
 
 	private sendExceptionBreakpoints(): Promise {
-		if (!this.session) {
+		if (!this.session || !this.session.readyForBreakpoints) {
 			return Promise.as(null);
 		}
 

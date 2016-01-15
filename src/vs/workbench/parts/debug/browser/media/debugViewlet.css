@@ -10,7 +10,7 @@
 }
 
 .debug-viewlet .monaco-tree .monaco-tree-row > .content {
-	line-height: 24px;
+	line-height: 22px;
 }
 
 .monaco-workbench .debug-select {
@@ -71,9 +71,6 @@
 	line-height: 18px;
 
 	-webkit-user-select: text;
-	-moz-user-select: text;
-	-o-user-select: text;
-	-ms-user-select: text;
 }
 
 .debug-viewlet .debug-message-box.exception {

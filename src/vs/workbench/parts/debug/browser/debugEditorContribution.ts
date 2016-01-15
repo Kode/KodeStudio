@@ -13,7 +13,7 @@ import { KeyCode } from 'vs/base/common/keyCodes';
 import keyboard = require('vs/base/browser/keyboardEvent');
 import editorbrowser = require('vs/editor/browser/editorBrowser');
 import editorcommon = require('vs/editor/common/editorCommon');
-import { DebugHoverWidget } from 'vs/workbench/parts/debug/browser/debugHoverWidget';
+import { DebugHoverWidget } from 'vs/workbench/parts/debug/browser/debugHover';
 import debugactions = require('vs/workbench/parts/debug/electron-browser/debugActions');
 import debug = require('vs/workbench/parts/debug/common/debug');
 import { IWorkspaceContextService } from 'vs/workbench/services/workspace/common/contextService';
@@ -37,7 +37,7 @@ export class DebugEditorContribution implements editorcommon.IEditorContribution
 	) {
 		this.breakpointHintDecoration = [];
 		this.toDispose = [];
-		this.hoverWidget = new DebugHoverWidget(this.editor, this.debugService);
+		this.hoverWidget = new DebugHoverWidget(this.editor, this.debugService, this.instantiationService);
 		this.registerListeners();
 	}
 
@@ -164,7 +164,7 @@ export class DebugEditorContribution implements editorcommon.IEditorContribution
 		const stopKey = env.isMacintosh ? 'metaKey' : 'ctrlKey';
 
 		if (targetType === editorcommon.MouseTargetType.CONTENT_WIDGET && mouseEvent.target.detail === DebugHoverWidget.ID && !(<any>mouseEvent.event)[stopKey]) {
-			// mouse moved on top of content hover widget
+			// mouse moved on top of debug hover widget
 			return;
 		}
 

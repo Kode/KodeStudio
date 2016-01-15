@@ -15,7 +15,7 @@ import uuid = require('vs/base/common/uuid');
 import {IQuickNavigateConfiguration, IAutoFocus, IContext, IModel, Mode} from 'vs/base/parts/quickopen/common/quickOpen';
 import {Filter, Renderer, DataSource, IModelProvider} from 'vs/base/parts/quickopen/browser/quickOpenViewer';
 import {Dimension, Builder, $} from 'vs/base/browser/builder';
-import {ISelectionEvent, IFocusEvent, ITree, ContextMenuEvent} from 'vs/base/parts/tree/common/tree';
+import {ISelectionEvent, IFocusEvent, ITree, ContextMenuEvent} from 'vs/base/parts/tree/browser/tree';
 import {InputBox} from 'vs/base/browser/ui/inputbox/inputBox';
 import {Tree} from 'vs/base/parts/tree/browser/treeImpl';
 import {ProgressBar} from 'vs/base/browser/ui/progressbar/progressbar';
@@ -61,7 +61,7 @@ export class QuickOpenController extends DefaultController {
 export class QuickOpenWidget implements IModelProvider {
 
 	public static MAX_WIDTH = 600;				// Max total width of quick open widget
-	public static MAX_ITEMS_HEIGHT = 20 * 24;	// Max height of item list below input field
+	public static MAX_ITEMS_HEIGHT = 20 * 22;	// Max height of item list below input field
 
 	private options: IQuickOpenOptions;
 	private builder: Builder;
@@ -693,7 +693,7 @@ export class QuickOpenWidget implements IModelProvider {
 		this.tree.setInput(null);
 
 		// Reset Tree Height
-		this.treeContainer.style({ height: (this.options.minItemsToShow ? this.options.minItemsToShow * 24 : 0) + 'px' });
+		this.treeContainer.style({ height: (this.options.minItemsToShow ? this.options.minItemsToShow * 22 : 0) + 'px' });
 
 		// Clear any running Progress
 		this.progressBar.stop().getContainer().hide();

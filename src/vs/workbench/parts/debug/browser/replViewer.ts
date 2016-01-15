@@ -6,6 +6,7 @@
 import nls = require('vs/nls');
 import { Promise, TPromise } from 'vs/base/common/winjs.base';
 import actions = require('vs/base/common/actions');
+import strings = require('vs/base/common/strings');
 import URI from 'vs/base/common/uri';
 import { isMacintosh, isLinux, isWindows } from 'vs/base/common/platform';
 import actionbar = require('vs/base/browser/ui/actionbar/actionbar');
@@ -13,7 +14,7 @@ import dom = require('vs/base/browser/dom');
 import errors = require('vs/base/common/errors');
 import severity from 'vs/base/common/severity';
 import mouse = require('vs/base/browser/mouseEvent');
-import tree = require('vs/base/parts/tree/common/tree');
+import tree = require('vs/base/parts/tree/browser/tree');
 import renderer = require('vs/base/parts/tree/browser/actionsRenderer');
 import treedefaults = require('vs/base/parts/tree/browser/treeDefaults');
 import debug = require('vs/workbench/parts/debug/common/debug');
@@ -92,7 +93,7 @@ export class ReplExpressionsRenderer implements tree.IRenderer {
 	private static VALUE_OUTPUT_TEMPLATE_ID = 'outputValue';
 	private static KEY_VALUE_OUTPUT_TEMPLATE_ID = 'outputKeyValue';
 
-	private static FILE_LOCATION_PATTERNS:RegExp[] = [
+	private static FILE_LOCATION_PATTERNS: RegExp[] = [
 		// group 0: the full thing :)
 		// group 1: absolute path
 		// group 2: drive letter on windows with trailing backslash or leading slash on mac/linux
@@ -100,7 +101,7 @@ export class ReplExpressionsRenderer implements tree.IRenderer {
 		// group 4: column number
 		// eg: at Context.<anonymous> (c:\Users\someone\Desktop\mocha-runner\test\test.js:26:11)
 		/((\/|[a-zA-Z]:\\)[^\(\)<>\'\"\[\]]+):(\d+):(\d+)/
-	]
+	];
 
 	private width: number;
 	private characterWidth: number;
@@ -113,16 +114,20 @@ export class ReplExpressionsRenderer implements tree.IRenderer {
 		// noop
 	}
 
-	public getHeight(tree:tree.ITree, element:any): number {
+	public getHeight(tree: tree.ITree, element: any): number {
 		return this.getHeightForString(element.value) + (element instanceof model.Expression ? this.getHeightForString(element.name) : 0);
 	}
 
 	private getHeightForString(s: string): number {
 		if (!s || !s.length || this.width <= 0 || this.characterWidth <= 0) {
-			return 24;
+			return 18;
+		}
+		let realLength = 0;
+		for (let i = 0; i < s.length; i++) {
+			realLength += strings.isFullWidthCharacter(s.charCodeAt(i)) ? 2 : 1;
 		}
 
-		return 24 * Math.ceil(s.length * this.characterWidth / this.width);
+		return 18 * Math.ceil(realLength * this.characterWidth / this.width);
 	}
 
 	public setWidth(fullWidth: number, characterWidth: number): void {
@@ -208,7 +213,7 @@ export class ReplExpressionsRenderer implements tree.IRenderer {
 
 	private renderInputOutputPair(tree: tree.ITree, expression: debug.IExpression, templateData: IInputOutputPairTemplateData): void {
 		templateData.input.textContent = expression.name;
-		debugviewer.renderExpressionValue(tree, expression, this.debugService.getState() === debug.State.Inactive, templateData.value);
+		debugviewer.renderExpressionValue(expression, this.debugService.getState() === debug.State.Inactive, templateData.value);
 		if (expression.reference > 0) {
 			templateData.annotation.className = 'annotation octicon octicon-info';
 			templateData.annotation.title = nls.localize('stateCapture', "Object state is captured from first evaluation");
@@ -401,7 +406,7 @@ export class ReplExpressionsRenderer implements tree.IRenderer {
 		}
 
 		// value
-		debugviewer.renderExpressionValue(tree, output.value, false, templateData.value);
+		debugviewer.renderExpressionValue(output.value, false, templateData.value);
 
 		// annotation if any
 		if (output.annotation) {

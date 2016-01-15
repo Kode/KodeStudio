@@ -26,12 +26,12 @@ export interface IExecutionResult {
 function exec(child: ChildProcess, encoding = 'utf8'): TPromise<IExecutionResult> {
 	const disposables: IDisposable[] = [];
 
-	const once = (ee: EventEmitter, name: string, fn: Function) => {
+	const once = (ee: NodeJS.EventEmitter, name: string, fn: Function) => {
 		ee.once(name, fn);
 		disposables.push(toDisposable(() => ee.removeListener(name, fn)));
 	};
 
-	const on = (ee: EventEmitter, name: string, fn: Function) => {
+	const on = (ee: NodeJS.EventEmitter, name: string, fn: Function) => {
 		ee.on(name, fn);
 		disposables.push(toDisposable(() => ee.removeListener(name, fn)));
 	};
@@ -44,12 +44,12 @@ function exec(child: ChildProcess, encoding = 'utf8'): TPromise<IExecutionResult
 		new TPromise<string>(c => {
 			let buffers: Buffer[] = [];
 			on(child.stdout, 'data', b => buffers.push(b));
-			once(child.stdout, 'close', () => c(Buffer.concat(buffers).toString(encoding)));
+			once(child.stdout, 'close', () => c(iconv.decode(Buffer.concat(buffers), encoding)));
 		}),
 		new TPromise<string>(c => {
 			let buffers: Buffer[] = [];
 			on(child.stderr, 'data', b => buffers.push(b));
-			once(child.stderr, 'close', () => c(Buffer.concat(buffers).toString(encoding)));
+			once(child.stderr, 'close', () => c(iconv.decode(Buffer.concat(buffers), encoding)));
 		})
 	]).then(values => {
 		disposeAll(disposables);

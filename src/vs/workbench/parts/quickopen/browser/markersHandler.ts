@@ -13,7 +13,7 @@ import * as dom from 'vs/base/browser/dom';
 import * as nls from 'vs/nls';
 import {ICommonCodeEditor, IEditorViewState} from 'vs/editor/common/editorCommon';
 import {PathLabelProvider} from 'vs/base/common/labels';
-import {ITree, IElementCallback} from 'vs/base/parts/tree/common/tree';
+import {ITree, IElementCallback} from 'vs/base/parts/tree/browser/tree';
 import Severity from 'vs/base/common/severity';
 import {QuickOpenHandler} from 'vs/workbench/browser/quickopen';
 import {QuickOpenAction} from 'vs/workbench/browser/actions/quickOpenAction';
@@ -180,7 +180,10 @@ export class MarkersHandler extends QuickOpenHandler {
 
 			// 2nd viewstate
 			const editor = this._editorService.getActiveEditor();
-			const viewState = (<ICommonCodeEditor>editor.getControl()).saveViewState();
+			let viewState: IEditorViewState;
+			if (editor) {
+				viewState = (<ICommonCodeEditor>editor.getControl()).saveViewState();
+			}
 
 			this._activeSession = [model, viewState];
 		}
@@ -199,8 +202,10 @@ export class MarkersHandler extends QuickOpenHandler {
 		if (this._activeSession) {
 			if (canceled) {
 				const [, viewState] = this._activeSession;
-				const editor = this._editorService.getActiveEditor();
-				(<ICommonCodeEditor>editor.getControl()).restoreViewState(viewState);
+				if (viewState) {
+					const editor = this._editorService.getActiveEditor();
+					(<ICommonCodeEditor>editor.getControl()).restoreViewState(viewState);
+				}
 			}
 			this._activeSession = undefined;
 		}
