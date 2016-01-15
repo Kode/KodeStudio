@@ -10,3 +10,7 @@
 	path = extensions/chrome-debug
 	url = ../vscode-chrome-debug
 	branch = master
+[submodule "extensions/hxcpp-debug"]
+	path = extensions/hxcpp-debug
+	url = ../vscode-hxcpp-debug
+	branch = master
