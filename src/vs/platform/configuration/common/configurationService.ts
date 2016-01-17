@@ -19,7 +19,7 @@ import {IWorkspaceContextService} from 'vs/platform/workspace/common/workspace';
 import Files = require('vs/platform/files/common/files');
 import {IConfigurationRegistry, Extensions} from './configurationRegistry';
 import {Registry} from 'vs/platform/platform';
-
+import fs = require('fs');
 
 // ---- service abstract implementation
 
@@ -122,6 +122,32 @@ export abstract class ConfigurationService extends eventEmitter.EventEmitter imp
 					consolidated.contents,				// source: workspace configured values
 					true								// overwrite
 				);
+
+				try {
+					if (fs.statSync(this.contextService.toResource('khafile.js').fsPath).isFile()) {
+						merged = objects.mixin(
+							merged,
+							{
+								launch: {
+									configurations: [
+										{
+											name: "Launch",
+											type: "chrome",
+											request: "launch",
+											file: "build/debug-html5",
+											sourceMaps: true,
+											runtimeExecutable: process.execPath
+										}
+									]
+								}
+							},
+							true
+						);
+					}
+				}
+				catch (error) {
+
+				}
 
 				return {
 					merged: merged,
