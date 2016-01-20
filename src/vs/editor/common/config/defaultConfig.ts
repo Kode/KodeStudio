@@ -66,7 +66,7 @@ class ConfigClass implements IConfiguration {
 			renderWhitespace: false,
 
 			tabSize: 4,
-			insertSpaces: true,
+			insertSpaces: false,
 			fontFamily: '',
 			fontSize: 0,
 			lineHeight: 0
