@@ -1,4 +1,4 @@
-Copyright (c) KTX Software Development
+Copyright (c) Microsoft Corporation
 
 All rights reserved.
 
