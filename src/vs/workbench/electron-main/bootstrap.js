@@ -15,8 +15,10 @@ var path = require('path');
 var argv = process.argv.slice(1);
 var file = null;
 for (var i = 0; i < argv.length; i++) {
-	file = argv[i];
-	break;
+	if (argv[i].trim().length > 0 && argv[i] !== '.' && argv[i][0] !== '-') {
+		file = argv[i];
+		break;
+	}
 }
 
 if (file) {
