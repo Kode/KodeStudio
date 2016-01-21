@@ -68,7 +68,7 @@ try {
 // Set path according to being built or not
 if (!!process.env.VSCODE_DEV) {
 	var appData = app.getPath('appData');
-	app.setPath('userData', path.join(appData, 'Code-Development'));
+	app.setPath('userData', path.join(appData, 'KodeStudio-Development'));
 }
 
 // Mac: when someone drops a file to the not-yet running VSCode, the open-file event fires even before

@@ -1,9 +1,9 @@
 {
-  "name": "Code",
+  "name": "KodeStudio",
   "version": "0.10.7",
   "electronVersion": "0.35.6",
   "author": {
-    "name": "Microsoft Corporation"
+    "name": "KTX Software Development"
   },
   "main": "./out/vs/workbench/electron-main/bootstrap",
   "private": true,
