@@ -9,7 +9,52 @@
 global.vscodeStart = Date.now();
 
 var app = require('electron').app;
+var fs = require('fs');
 var path = require('path');
+
+var argv = process.argv.slice(1);
+var file = null;
+for (var i = 0; i < argv.length; i++) {
+	file = argv[i];
+	break;
+}
+
+if (file) {
+	try {
+		// Override app name and version.
+		var packagePath = path.resolve(file);
+		var packageJsonPath = path.join(packagePath, 'package.json');
+		if (fs.existsSync(packageJsonPath)) {
+			var packageJson = JSON.parse(fs.readFileSync(packageJsonPath));
+			if (packageJson.version)
+				app.setVersion(packageJson.version);
+			if (packageJson.productName)
+				app.setName(packageJson.productName);
+			else if (packageJson.name)
+				app.setName(packageJson.name);
+			app.setPath('userData', path.join(app.getPath('appData'), app.getName()));
+			app.setPath('userCache', path.join(app.getPath('cache'), app.getName()));
+			app.setAppPath(packagePath);
+		}
+
+		// Run the app.
+		require('module')._load(packagePath, module, true);
+	} catch(e) {
+		if (e.code == 'MODULE_NOT_FOUND') {
+			app.focus();
+			dialog.showErrorBox(
+				'Error opening app',
+				'The app provided is not a valid Electron app, please read the docs on how to write one:\n' +
+				`https://github.com/atom/electron/tree/v${process.versions.electron}/docs\n\n${e.toString()}`
+			);
+			process.exit(1);
+		} else {
+			console.error('App threw an error when running', e);
+			throw e;
+		}
+	}
+}
+else {
 
 // Change cwd if given via env variable
 try {
@@ -59,3 +104,5 @@ app.once('ready', function() {
 		// Loading done
 	}, function (err) { console.error(err); });
 });
+
+}
