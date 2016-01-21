@@ -24,7 +24,7 @@ var eolFilter = [
 	'!extensions/**/out/**',
 	'!**/node_modules/**',
 	'!**/fixtures/**',
-	'!**/*.{svg,exe,png,scpt,bat,cmd,cur,ttf,woff,eot}',
+	'!**/*.{svg,exe,png,scpt,bat,cmd,cur,ttf,woff,eot,ico}',
 ];
 
 var indentationFilter = [
