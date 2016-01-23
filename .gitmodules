@@ -14,3 +14,7 @@
 	path = extensions/hxcpp-debug
 	url = ../vscode-hxcpp-debug
 	branch = master
+[submodule "extensions/kha"]
+	path = extensions/kha
+	url = ../vscode-kha
+	branch = master
