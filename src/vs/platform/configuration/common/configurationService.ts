@@ -125,6 +125,11 @@ export abstract class ConfigurationService extends eventEmitter.EventEmitter imp
 
 				try {
 					if (fs.statSync(this.contextService.toResource('khafile.js').fsPath).isFile()) {
+						let exec = process.execPath;
+						if (exec.indexOf('Electron Helper') >= 0) {
+							let dir = exec.substring(0, exec.lastIndexOf('/'));
+							exec = paths.join(dir, '..', '..', '..', '..', 'MacOS', 'Electron');
+						}
 						merged = objects.mixin(
 							merged,
 							{
@@ -136,7 +141,7 @@ export abstract class ConfigurationService extends eventEmitter.EventEmitter imp
 											request: "launch",
 											file: "build/debug-html5",
 											sourceMaps: true,
-											runtimeExecutable: process.execPath
+											runtimeExecutable: exec
 										}
 									]
 								}
