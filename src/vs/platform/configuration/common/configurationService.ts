@@ -19,7 +19,9 @@ import {IWorkspaceContextService} from 'vs/platform/workspace/common/workspace';
 import Files = require('vs/platform/files/common/files');
 import {IConfigurationRegistry, Extensions} from './configurationRegistry';
 import {Registry} from 'vs/platform/platform';
+import {PluginsRegistry, PluginsMessageCollector} from 'vs/platform/plugins/common/pluginsRegistry';
 import fs = require('fs');
+import path = require('path');
 
 // ---- service abstract implementation
 
@@ -130,6 +132,7 @@ export abstract class ConfigurationService extends eventEmitter.EventEmitter imp
 							let dir = exec.substring(0, exec.lastIndexOf('/'));
 							exec = paths.join(dir, '..', '..', '..', '..', 'MacOS', 'Electron');
 						}
+
 						merged = objects.mixin(
 							merged,
 							{
@@ -141,7 +144,8 @@ export abstract class ConfigurationService extends eventEmitter.EventEmitter imp
 											request: "launch",
 											file: "build/debug-html5",
 											sourceMaps: true,
-											runtimeExecutable: exec
+											runtimeExecutable: exec,
+											kha: path.join(PluginsRegistry.getPluginDescription('ktx.kha').extensionFolderPath, 'Kha')
 										}
 									]
 								}
