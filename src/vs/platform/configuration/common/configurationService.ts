@@ -107,6 +107,14 @@ export abstract class ConfigurationService extends eventEmitter.EventEmitter imp
 		});
 	}
 
+	public static findKha(values): String {
+		if (values.kha) {
+			let khapath = values.kha.khaPath;
+			if (khapath.length > 0) return khapath;
+		}
+		return path.join(PluginsRegistry.getPluginDescription('ktx.kha').extensionFolderPath, 'Kha')
+	}
+
 	private doLoadConfiguration(): winjs.TPromise<ILoadConfigResult> {
 
 		// Load globals
@@ -145,7 +153,7 @@ export abstract class ConfigurationService extends eventEmitter.EventEmitter imp
 											file: "build/debug-html5",
 											sourceMaps: true,
 											runtimeExecutable: exec,
-											kha: path.join(PluginsRegistry.getPluginDescription('ktx.kha').extensionFolderPath, 'Kha')
+											kha: ConfigurationService.findKha(merged)
 										}
 									]
 								}
