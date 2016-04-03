@@ -20,7 +20,7 @@ import Files = require('vs/platform/files/common/files');
 import {IConfigurationRegistry, Extensions} from './configurationRegistry';
 import {Registry} from 'vs/platform/platform';
 import Event, {fromEventEmitter} from 'vs/base/common/event';
-import {PluginsRegistry} from 'vs/platform/plugins/common/pluginsRegistry';
+import {ExtensionsRegistry} from 'vs/platform/extensions/common/extensionsRegistry';
 import fs = require('fs');
 import path = require('path');
 
@@ -119,7 +119,7 @@ export abstract class ConfigurationService extends eventEmitter.EventEmitter imp
 				return khapath;
 			}
 		}
-		return path.join(PluginsRegistry.getPluginDescription('ktx.kha').extensionFolderPath, 'Kha');
+		return path.join(ExtensionsRegistry.getExtensionDescription('ktx.kha').extensionFolderPath, 'Kha');
 	}
 
 	private doLoadConfiguration(): winjs.TPromise<ILoadConfigResult> {
