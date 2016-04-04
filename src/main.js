@@ -95,6 +95,55 @@ function getNLSConfiguration() {
 	return { locale: initialLocale, availableLanguages: {} };
 }
 
+function findKhaAppParameter() {
+	var argv = process.argv.slice(1);
+	for (var i = 0; i < argv.length; i++) {
+		if (argv[i].trim().length > 0 && argv[i] !== '.' && argv[i][0] !== '-') {
+			return argv[i];
+		}
+	}
+	return null;
+}
+
+// start in Kha debug mode
+if (findKhaAppParameter()) {
+	try {
+		// Override app name and version.
+		var file = findKhaAppParameter();
+		var packagePath = path.resolve(file);
+		var packageJsonPath = path.join(packagePath, 'package.json');
+		if (fs.existsSync(packageJsonPath)) {
+			var packageJson = JSON.parse(fs.readFileSync(packageJsonPath));
+			if (packageJson.version)
+				app.setVersion(packageJson.version);
+			if (packageJson.productName)
+				app.setName(packageJson.productName);
+			else if (packageJson.name)
+				app.setName(packageJson.name);
+			app.setPath('userData', path.join(app.getPath('appData'), app.getName()));
+			app.setPath('userCache', path.join(app.getPath('cache'), app.getName()));
+			app.setAppPath(packagePath);
+		}
+
+		// Run the app.
+		require('module')._load(packagePath, module, true);
+	} catch(e) {
+		if (e.code == 'MODULE_NOT_FOUND') {
+			app.focus();
+			dialog.showErrorBox(
+				'Error opening app',
+				'The app provided is not a valid Electron app, please read the docs on how to write one:\n' +
+				`https://github.com/atom/electron/tree/v${process.versions.electron}/docs\n\n${e.toString()}`
+			);
+			process.exit(1);
+		} else {
+			console.error('App threw an error when running', e);
+			throw e;
+		}
+	}
+}
+else {
+
 // Change cwd if given via env variable
 try {
 	if (process.env.VSCODE_CWD) {
@@ -107,7 +156,7 @@ try {
 // Set path according to being built or not
 if (process.env.VSCODE_DEV) {
 	var appData = app.getPath('appData');
-	app.setPath('userData', path.join(appData, 'Code-Development'));
+	app.setPath('userData', path.join(appData, 'KodeStudio-Development'));
 }
 
 // Mac: when someone drops a file to the not-yet running VSCode, the open-file event fires even before
@@ -123,3 +172,5 @@ app.once('ready', function() {
 	process.env['VSCODE_NLS_CONFIG'] = JSON.stringify(nlsConfig);
 	require('./bootstrap-amd').bootstrap('vs/workbench/electron-main/main');
 });
+
+}
