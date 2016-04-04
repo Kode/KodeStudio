@@ -160,7 +160,8 @@ export abstract class ConfigurationService extends eventEmitter.EventEmitter imp
 											file: 'build/debug-html5',
 											sourceMaps: true,
 											runtimeExecutable: exec,
-											kha: ConfigurationService.findKha(merged)
+											kha: ConfigurationService.findKha(merged),
+											cwd: this.contextService.getWorkspace().resource.fsPath
 										}
 									]
 								}
@@ -170,7 +171,7 @@ export abstract class ConfigurationService extends eventEmitter.EventEmitter imp
 					}
 				}
 				catch (error) {
-
+					
 				}
 
 				return {
