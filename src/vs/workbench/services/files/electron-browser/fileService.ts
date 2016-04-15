@@ -5,10 +5,9 @@
 'use strict';
 
 import nls = require('vs/nls');
-import {TPromise, Promise} from 'vs/base/common/winjs.base';
+import {TPromise} from 'vs/base/common/winjs.base';
 import paths = require('vs/base/common/paths');
-import platform = require('vs/base/common/platform');
-import encoding = require('vs/base/common/bits/encoding');
+import encoding = require('vs/base/node/encoding');
 import errors = require('vs/base/common/errors');
 import strings = require('vs/base/common/strings');
 import uri from 'vs/base/common/uri';
@@ -44,9 +43,9 @@ export class FileService implements files.IFileService {
 				encodingOverride.push({ resource: uri.file(paths.join(this.contextService.getWorkspace().resource.fsPath, '.vscode')), encoding: encoding.UTF8 });
 			}
 
-			let doNotWatch = ['**/.git/objects/**']; 	// this folder does the heavy duty for git and we don't need to watch it
-			if (platform.isLinux) {
-				doNotWatch.push('**/node_modules/**'); 	// Linux does not have a good watching implementation, so we exclude more
+			let watcherIgnoredPatterns:string[] = [];
+			if (configuration.files && configuration.files.watcherExclude) {
+				watcherIgnoredPatterns = Object.keys(configuration.files.watcherExclude).filter(k => !!configuration.files.watcherExclude[k]);
 			}
 
 			// build config
@@ -54,7 +53,7 @@ export class FileService implements files.IFileService {
 				errorLogger: (msg: string) => errors.onUnexpectedError(msg),
 				encoding: configuration.files && configuration.files.encoding,
 				encodingOverride: encodingOverride,
-				watcherIgnoredPatterns: doNotWatch,
+				watcherIgnoredPatterns: watcherIgnoredPatterns,
 				verboseLogging: this.contextService.getConfiguration().env.verboseLogging
 			};
 
@@ -121,7 +120,7 @@ export class FileService implements files.IFileService {
 			}, (error) => {
 				timerEvent.stop();
 
-				return Promise.wrapError(error);
+				return TPromise.wrapError(error);
 			});
 		});
 	}
@@ -166,20 +165,20 @@ export class FileService implements files.IFileService {
 		});
 	}
 
-	private doMoveItemToTrash(resource: uri): Promise {
+	private doMoveItemToTrash(resource: uri): TPromise<void> {
 		let workspace = this.contextService.getWorkspace();
 		if (!workspace) {
-			return Promise.wrapError('Need a workspace to use this');
+			return TPromise.wrapError<void>('Need a workspace to use this');
 		}
 
 		let absolutePath = resource.fsPath;
 
 		let result = shell.moveItemToTrash(absolutePath);
 		if (!result) {
-			return TPromise.wrapError(new Error(nls.localize('trashFailed', "Failed to move '{0}' to the trash", paths.basename(absolutePath))));
+			return TPromise.wrapError<void>(new Error(nls.localize('trashFailed', "Failed to move '{0}' to the trash", paths.basename(absolutePath))));
 		}
 
-		return Promise.as(null);
+		return TPromise.as(null);
 	}
 
 	public importFile(source: uri, targetFolder: uri): TPromise<files.IImportResult> {

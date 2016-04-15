@@ -4,25 +4,32 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
-import {TPromise} from 'vs/base/common/winjs.base';
 import nls = require('vs/nls');
+import lifecycle = require('vs/base/common/lifecycle');
+import {TPromise} from 'vs/base/common/winjs.base';
+import {RunOnceScheduler} from 'vs/base/common/async';
 import {EditorModel} from 'vs/workbench/common/editor';
-import {LogEditorInput} from 'vs/workbench/common/editor/logEditorInput';
-import {OUTPUT_EDITOR_INPUT_ID, IOutputEvent, OUTPUT_MIME, IOutputService} from 'vs/workbench/parts/output/common/output';
+import {StringEditorInput} from 'vs/workbench/common/editor/stringEditorInput';
+import {OUTPUT_EDITOR_INPUT_ID, OUTPUT_PANEL_ID, IOutputEvent, OUTPUT_MIME, IOutputService, MAX_OUTPUT_LENGTH} from 'vs/workbench/parts/output/common/output';
+import {OutputPanel} from 'vs/workbench/parts/output/browser/outputPanel';
 import {IInstantiationService} from 'vs/platform/instantiation/common/instantiation';
-import {IWorkbenchEditorService} from 'vs/workbench/services/editor/common/editorService';
+import {IEventService} from 'vs/platform/event/common/event';
+import {EventType, CompositeEvent} from 'vs/workbench/common/events';
+import {IPanelService} from 'vs/workbench/services/panel/common/panelService';
 
 /**
  * Output Editor Input
  */
-export class OutputEditorInput extends LogEditorInput {
+export class OutputEditorInput extends StringEditorInput {
 
+	private static OUTPUT_DELAY = 300; // delay in ms to accumulate output before emitting an event about it
 	private static instances: { [channel: string]: OutputEditorInput; } = Object.create(null);
-	private static MAX_OUTPUT_LINES = 10000; // Max. number of output lines to show in output
 
 	private outputSet: boolean;
 	private channel: string;
-	private toUnbind: { (): void; }[];
+	private bufferedOutput: string;
+	private toDispose: lifecycle.IDisposable[];
+	private appendOutputScheduler: RunOnceScheduler;
 
 	public static getInstances(): OutputEditorInput[] {
 		return Object.keys(OutputEditorInput.instances).map((key) => OutputEditorInput.instances[key]);
@@ -41,26 +48,71 @@ export class OutputEditorInput extends LogEditorInput {
 	constructor(
 		channel: string,
 		@IInstantiationService instantiationService: IInstantiationService,
-		@IWorkbenchEditorService editorService: IWorkbenchEditorService,
-		@IOutputService private outputService: IOutputService
+		@IOutputService private outputService: IOutputService,
+		@IPanelService private panelService: IPanelService,
+		@IEventService private eventService: IEventService
 	) {
-		super(nls.localize('output', "Output"), channel ? nls.localize('outputChannel', "for '{0}'", channel) : '', '', OUTPUT_MIME, true, instantiationService, editorService);
+		super(nls.localize('output', "Output"), channel ? nls.localize('outputChannel', "for '{0}'", channel) : '', '', OUTPUT_MIME, true, instantiationService);
 
 		this.channel = channel;
-		this.toUnbind = [];
+		this.bufferedOutput = '';
+		this.toDispose = [];
+		this.toDispose.push(this.outputService.onOutput(this.onOutputReceived, this));
+		this.toDispose.push(this.outputService.onActiveOutputChannel(() => this.scheduleOutputAppend()));
+		this.toDispose.push(this.eventService.addListener2(EventType.COMPOSITE_OPENED, (e: CompositeEvent) => {
+			if (e.compositeId === OUTPUT_PANEL_ID) {
+				this.appendOutput();
+			}
+		}));
 
-		const listenerUnbind = this.outputService.onOutput(this.onOutputReceived, this);
-		this.toUnbind.push(() => listenerUnbind.dispose());
+		this.appendOutputScheduler = new RunOnceScheduler(() => {
+			if (this.isVisible()) {
+				this.appendOutput();
+			}
+		}, OutputEditorInput.OUTPUT_DELAY);
+	}
+
+	private appendOutput(): void {
+		if (this.value.length + this.bufferedOutput.length > MAX_OUTPUT_LENGTH) {
+			this.setValue(this.outputService.getOutput(this.channel));
+		} else {
+			this.append(this.bufferedOutput);
+		}
+		this.bufferedOutput = '';
+
+		const panel = this.panelService.getActivePanel();
+		(<OutputPanel>panel).revealLastLine();
 	}
 
 	private onOutputReceived(e: IOutputEvent): void {
 		if (this.outputSet && e.channel === this.channel) {
 			if (e.output) {
-				this.append(e.output);
-				this.trim(OutputEditorInput.MAX_OUTPUT_LINES);
+				// TODO@Isidor extract this output trimming to common string with tests
+				const newLength = this.bufferedOutput.length + e.output.length;
+				if (newLength > MAX_OUTPUT_LENGTH) {
+					this.bufferedOutput = '...' + this.bufferedOutput.substr(newLength - MAX_OUTPUT_LENGTH);
+				}
+				if (e.output.length > MAX_OUTPUT_LENGTH) {
+					this.bufferedOutput += e.output.substr(e.output.length - MAX_OUTPUT_LENGTH);
+				} else {
+					this.bufferedOutput += e.output;
+				}
+
+				this.scheduleOutputAppend();
 			} else if (e.output === null) {
 				this.clearValue(); // special output indicates we should clear
 			}
+		}
+	}
+
+	private isVisible(): boolean {
+		const panel = this.panelService.getActivePanel();
+		return panel && panel.getId() === OUTPUT_PANEL_ID && this.outputService.getActiveChannel() === this.channel;
+	}
+
+	private scheduleOutputAppend(): void {
+		if (this.isVisible() && this.bufferedOutput && !this.appendOutputScheduler.isScheduled()) {
+			this.appendOutputScheduler.schedule();
 		}
 	}
 
@@ -70,7 +122,6 @@ export class OutputEditorInput extends LogEditorInput {
 
 	public resolve(refresh?: boolean): TPromise<EditorModel> {
 		return super.resolve(refresh).then(model => {
-
 			// Just return model if output already set
 			if (this.outputSet) {
 				return model;
@@ -83,12 +134,6 @@ export class OutputEditorInput extends LogEditorInput {
 		});
 	}
 
-	public clearOutput(): void {
-		if (this.outputService) {
-			this.outputService.clearOutput(this.channel);
-		}
-	}
-
 	public getChannel(): string {
 		return this.channel;
 	}
@@ -98,16 +143,15 @@ export class OutputEditorInput extends LogEditorInput {
 			let otherOutputEditorInput = <OutputEditorInput>otherInput;
 			if (otherOutputEditorInput.getChannel() === this.channel) {
 				return super.matches(otherInput);
-			};
+			}
 		}
 
 		return false;
 	}
 
 	public dispose(): void {
-		while (this.toUnbind.length) {
-			this.toUnbind.pop()();
-		}
+		this.appendOutputScheduler.dispose();
+		this.toDispose = lifecycle.disposeAll(this.toDispose);
 
 		super.dispose();
 	}

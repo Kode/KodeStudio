@@ -66,13 +66,6 @@ export function escapeRegExpCharacters(value: string): string {
 }
 
 /**
- * Searches for all occurrences of needle in haystack and replaces them with replacement.
- */
-export function replaceAll(haystack: string, needle: string, replacement: string): string {
-	return haystack.replace(new RegExp(escapeRegExpCharacters(needle.toString()), 'g'), replacement);
-}
-
-/**
  * Removes all occurrences of needle from the beginning and end of haystack.
  * @param haystack string to trim
  * @param needle the thing to trim (default is a blank)
@@ -145,7 +138,7 @@ export function convertSimple2RegExpPattern(pattern: string): string {
 }
 
 export function stripWildcards(pattern: string): string {
-	return replaceAll(pattern, '*', '');
+	return pattern.replace(/\*/g, '');
 }
 
 /**
@@ -179,7 +172,7 @@ export function endsWith(haystack: string, needle: string): boolean {
 	}
 }
 
-export function createRegExp(searchString: string, isRegex: boolean, matchCase: boolean, wholeWord: boolean): RegExp {
+export function createRegExp(searchString: string, isRegex: boolean, matchCase: boolean, wholeWord: boolean, global:boolean): RegExp {
 	if (searchString === '') {
 		throw new Error('Cannot create regex from empty string');
 	}
@@ -194,7 +187,10 @@ export function createRegExp(searchString: string, isRegex: boolean, matchCase: 
 			searchString = searchString + '\\b';
 		}
 	}
-	let modifiers = 'g';
+	let modifiers = '';
+	if (global) {
+		modifiers += 'g';
+	}
 	if (!matchCase) {
 		modifiers += 'i';
 	}
@@ -213,7 +209,7 @@ export function createSafeRegExp(searchString:string, isRegex:boolean, matchCase
 		// Try to create a RegExp out of the params
 		var regex:RegExp = null;
 		try {
-			regex = createRegExp(searchString, isRegex, matchCase, wholeWord);
+			regex = createRegExp(searchString, isRegex, matchCase, wholeWord, true);
 		} catch (err) {
 			return null;
 		}
@@ -233,7 +229,7 @@ export function createSafeRegExp(searchString:string, isRegex:boolean, matchCase
 export function regExpLeadsToEndlessLoop(regexp: RegExp): boolean {
 	// Exit early if it's one of these special cases which are meant to match
 	// against an empty string
-	if (regexp.source === "^" || regexp.source === "^$" || regexp.source === "$") {
+	if (regexp.source === '^' || regexp.source === '^$' || regexp.source === '$') {
 		return false;
 	}
 
@@ -251,13 +247,16 @@ export function regExpLeadsToEndlessLoop(regexp: RegExp): boolean {
  */
 export let canNormalize = typeof ((<any>'').normalize) === 'function';
 const nonAsciiCharactersPattern = /[^\u0000-\u0080]/;
-export function normalizeNFC(str: string, cache?: { [str: string]: string }): string {
+const normalizedCache = Object.create(null);
+let cacheCounter = 0;
+export function normalizeNFC(str: string): string {
 	if (!canNormalize || !str) {
 		return str;
 	}
 
-	if (cache && cache[str]) {
-		return cache[str];
+	const cached = normalizedCache[str];
+	if (cached) {
+		return cached;
 	}
 
 	let res: string;
@@ -267,42 +266,14 @@ export function normalizeNFC(str: string, cache?: { [str: string]: string }): st
 		res = str;
 	}
 
-	if (cache) {
-		cache[str] = res;
+	// Use the cache for fast lookup but do not let it grow unbounded
+	if (cacheCounter < 10000) {
+		normalizedCache[str] = res;
+		cacheCounter++;
 	}
 
 	return res;
 }
-
-export function isCamelCasePattern(pattern: string): boolean {
-	return (/^\w[\w.]*$/).test(pattern);
-}
-
-export function isFalsyOrWhitespace(s: string): boolean {
-	return !s || !s.trim();
-}
-
-export function anchorPattern(value: string, start: boolean, end: boolean): string {
-	if (start) {
-		value = '^' + value;
-	}
-
-	if (end) {
-		value = value + '$';
-	}
-
-	return value;
-}
-
-export function assertRegExp(pattern: string, modifiers: string): void {
-	if (regExpLeadsToEndlessLoop(new RegExp(pattern, modifiers))) {
-		throw new Error('Regular expression /' + pattern + '/g results in infinitive matches');
-	}
-}
-
-export function colorize(code: number, value: string): string {
-	return '\x1b[' + code + 'm' + value + '\x1b[0m';
-};
 
 /**
  * Returns first index of the string that is not whitespace.

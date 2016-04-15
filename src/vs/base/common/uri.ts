@@ -4,7 +4,6 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
-import marshalling = require('vs/base/common/marshalling');
 import platform = require('vs/base/common/platform');
 
 // see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent
@@ -153,13 +152,14 @@ export default class URI {
 	// ---- parse & validate ------------------------
 
 	public static parse(value: string): URI {
-		var ret = URI._parse(value);
-		ret = ret.with(undefined,
-			decodeURIComponent(ret.authority),
-			decodeURIComponent(ret.path),
-			decodeURIComponent(ret.query),
-			decodeURIComponent(ret.fragment));
-
+		const ret = new URI();
+		const data = URI._parseComponents(value);
+		ret._scheme = data.scheme;
+		ret._authority = decodeURIComponent(data.authority);
+		ret._path = decodeURIComponent(data.path);
+		ret._query = decodeURIComponent(data.query);
+		ret._fragment = decodeURIComponent(data.fragment);
+		URI._validate(ret);
 		return ret;
 	}
 
@@ -168,33 +168,45 @@ export default class URI {
 		path = path.replace(/%/g, '%25');
 		path = path.replace(/#/g, '%23');
 		path = path.replace(/\?/g, '%3F');
+		// makes sure something like 'C:/Users' isn't
+		// parsed as scheme='C', path='Users'
 		path = URI._driveLetter.test(path)
 			? '/' + path
 			: path;
 
-		var ret = URI._parse(path);
-		if (ret.scheme || ret.fragment || ret.query) {
+		const data = URI._parseComponents(path);
+		if (data.scheme || data.fragment || data.query) {
 			throw new Error('Path contains a scheme, fragment or a query. Can not convert it to a file uri.');
 		}
 
-		ret = ret.with('file', undefined,
-			decodeURIComponent(ret.path),
-			undefined, undefined);
-
+		const ret = new URI();
+		ret._scheme = 'file';
+		ret._authority = data.authority;
+		ret._path = decodeURIComponent(data.path[0] === '/' ? data.path : '/' + data.path); // path starts with slash
+		ret._query = data.query;
+		ret._fragment = data.fragment;
+		URI._validate(ret);
 		return ret;
 	}
 
-	private static _parse(value: string): URI {
-		var ret = new URI();
-		var match = URI._regexp.exec(value);
-		if (match) {
-			ret._scheme = match[2] || ret._scheme;
-			ret._authority = match[4] || ret._authority;
-			ret._path = match[5] || ret._path;
-			ret._query = match[7] || ret._query;
-			ret._fragment = match[9] || ret._fragment;
+	private static _parseComponents(value: string): UriComponents {
+
+		const ret: UriComponents = {
+			scheme: URI._empty,
+			authority: URI._empty,
+			path: URI._empty,
+			query: URI._empty,
+			fragment: URI._empty,
 		};
-		URI._validate(ret);
+
+		const match = URI._regexp.exec(value);
+		if (match) {
+			ret.scheme = match[2] || ret.scheme;
+			ret.authority = match[4] || ret.authority;
+			ret.path = match[5] || ret.path;
+			ret.query = match[7] || ret.query;
+			ret.fragment = match[9] || ret.fragment;
+		}
 		return ret;
 	}
 
@@ -283,115 +295,42 @@ export default class URI {
 	}
 
 	public toJSON(): any {
-		return this.toString();
-	}
-
-	public _toSerialized(): any {
-		// because network.URL extends this class it is important that
-		// it can refine/override this method
-
-		return {
-			$isURI: true,
-			_scheme: this._scheme,
-			_authority: this._authority,
-			_path: this._path,
-			_query: this._query,
-			_fragment: this._fragment.replace(/URL_MARSHAL_REMOVE.*$/, ''), // TODO@Alex: implement derived resources (embedded mirror models) better
-			_fsPath: this._fsPath,
-			_formatted: this._formatted && this._formatted.replace(/#?URL_MARSHAL_REMOVE.*$/, ''), // TODO@Alex: implement derived resources (embedded mirror models) better
+		return <UriState> {
+			scheme: this.scheme,
+			authority: this.authority,
+			path: this.path,
+			fsPath: this.fsPath,
+			query: this.query,
+			fragment: this.fragment.replace(/URL_MARSHAL_REMOVE.*$/, ''), // TODO@Alex: implement derived resources (embedded mirror models) better
+			external: this.toString().replace(/#?URL_MARSHAL_REMOVE.*$/, ''), // TODO@Alex: implement derived resources (embedded mirror models) better
+			$mid: 1
 		};
 	}
 
-	static _fromSerialized(data: any): URI {
+	static revive(data: any): URI {
 		let result = new URI();
-		result._scheme = data._scheme;
-		result._authority = data._authority;
-		result._path = data._path;
-		result._query = data._query;
-		result._fragment = data._fragment;
-		result._fsPath = data._fsPath;
-		result._formatted = data._formatted;
+		result._scheme = (<UriState> data).scheme;
+		result._authority = (<UriState> data).authority;
+		result._path = (<UriState> data).path;
+		result._query = (<UriState> data).query;
+		result._fragment = (<UriState> data).fragment;
+		result._fsPath = (<UriState> data).fsPath;
+		result._formatted = (<UriState>data).external;
+		URI._validate(result);
 		return result;
 	}
-
-	public static isURI(thing: any): thing is URI {
-		if (thing instanceof URI) {
-			return true;
-		}
-		if(!thing) {
-			return false;
-		}
-		if (typeof (<URI>thing).scheme !== 'string') {
-			return false;
-		}
-		if (typeof (<URI>thing).authority !== 'string') {
-			return false;
-		}
-		if (typeof (<URI>thing).fsPath !== 'string') {
-			return false;
-		}
-		if (typeof (<URI>thing).query !== 'string') {
-			return false;
-		}
-		if (typeof (<URI>thing).fragment !== 'string') {
-			return false;
-		}
-		if (typeof (<URI>thing).with !== 'function') {
-			return false;
-		}
-		if (typeof (<URI>thing).withScheme !== 'function') {
-			return false;
-		}
-		if (typeof (<URI>thing).withAuthority !== 'function') {
-			return false;
-		}
-		if (typeof (<URI>thing).withPath !== 'function') {
-			return false;
-		}
-		if (typeof (<URI>thing).withQuery !== 'function') {
-			return false;
-		}
-		if (typeof (<URI>thing).withFragment !== 'function') {
-			return false;
-		}
-		if (typeof (<URI>thing).toString !== 'function') {
-			return false;
-		}
-		if (typeof (<URI>thing).toJSON !== 'function') {
-			return false;
-		}
-		return true;
-	}
 }
 
-interface _ISerializedURI {
-	$isURI: boolean;
-
-	_scheme: string;
-	_authority: string;
-	_path: string;
-	_query: string;
-	_fragment: string;
-
-	_fsPath: string;
-	_formatted: string;
+interface UriComponents {
+	scheme: string;
+	authority: string;
+	path: string;
+	query: string;
+	fragment: string;
 }
 
-marshalling.registerMarshallingContribution({
-
-	canSerialize: (obj:any): boolean => {
-		return URI.isURI(obj);
-	},
-
-	serialize: (url: URI, serialize: (obj: any) => any): _ISerializedURI => {
-		return url._toSerialized();
-	},
-
-	canDeserialize: (obj:_ISerializedURI): boolean => {
-		return obj.$isURI;
-	},
-
-	deserialize: (obj:_ISerializedURI, deserialize:(obj:any)=>any): any => {
-		return URI._fromSerialized(obj);
-	}
-});
+interface UriState extends UriComponents {
+	$mid: number;
+	fsPath: string;
+	external: string;
+}

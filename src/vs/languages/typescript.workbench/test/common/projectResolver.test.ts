@@ -62,7 +62,8 @@ function createModelService(): IModelService {
 		onModelAdded: undefined,
 		onModelRemoved: undefined,
 		onModelModeChanged: undefined,
-		destroyModel: undefined
+		destroyModel: undefined,
+		getCreationOptions: undefined
 	}
 }
 
@@ -84,7 +85,7 @@ function createSearchService(index:{ [n: string]: string } = Object.create(null)
 
 		for (var key in index) {
 			var resource = URI.file(key);
-			if (glob.match(query.includePattern, resource.fsPath)) {
+			if (glob.match(query.includePattern, resource.path)) {
 				results.push({
 					resource
 				});
@@ -106,14 +107,14 @@ function createFileService(index: { [n: string]: string } = Object.create(null))
 
 	function resolveContent(resource: URI): winjs.TPromise<Files.IContent> {
 
-		if (!index[resource.fsPath]) {
+		if (!index[resource.path]) {
 			return winjs.TPromise.as(null);
 		}
 
 		var result: Files.IContent = {
 			resource,
-			value: index[resource.fsPath],
-			charset: undefined,
+			value: index[resource.path],
+			encoding: undefined,
 			etag: undefined,
 			mime: undefined,
 			mtime: undefined,
@@ -125,11 +126,11 @@ function createFileService(index: { [n: string]: string } = Object.create(null))
 	function resolveContents(resources: URI[]): any {
 		var result: Files.IContent[] = [];
 		resources.forEach(resource => {
-			if (index[resource.fsPath]) {
+			if (index[resource.path]) {
 				result.push({
 					resource,
-					value: index[resource.fsPath],
-					charset: undefined,
+					value: index[resource.path],
+					encoding: undefined,
 					etag: undefined,
 					mime: undefined,
 					mtime: undefined,
@@ -186,9 +187,9 @@ function createTelemetryService(): ITelemetryService {
 var instantiationService: IInstantiationService;
 
 function setup() {
-	instantiationService = instantiation.create({
+	instantiationService = instantiation.createInstantiationService({
 		eventService: new eventEmitter.EventEmitter(),
-		markerService: new markerService.MarkerService(NULL_THREAD_SERVICE),
+		markerService: new markerService.MainProcessMarkerService(NULL_THREAD_SERVICE),
 		fileService: createFileService(),
 		searchService: createSearchService(),
 		messageService: createMessageService(),
@@ -229,11 +230,11 @@ suite('TS - Project Resolver', () => {
 		};
 
 		var files: { [n: string]: string } = Object.create(null);
-		files['jsconfig.json'] = '{}';
-		files['a.js'] = 'a';
-		files['b.js'] = 'b';
-		files['c.d.ts'] = 'c';
-		files['d.ts'] = 'd';
+		files['/jsconfig.json'] = '{}';
+		files['/a.js'] = 'a';
+		files['/b.js'] = 'b';
+		files['/c.d.ts'] = 'c';
+		files['/d.ts'] = 'd';
 
 		var resolver = instantiationService.createChild({
 			searchService: createSearchService(files),

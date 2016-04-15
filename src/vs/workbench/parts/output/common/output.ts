@@ -8,7 +8,7 @@ import {TPromise} from 'vs/base/common/winjs.base';
 import Event from 'vs/base/common/event';
 import {Registry} from 'vs/platform/platform';
 import {createDecorator, ServiceIdentifier} from 'vs/platform/instantiation/common/instantiation';
-import {IEditor, Position} from 'vs/platform/editor/common/editor';
+import {IEditor} from 'vs/platform/editor/common/editor';
 
 /**
  * Mime type used by the output editor.
@@ -26,15 +26,17 @@ export const OUTPUT_MODE_ID = 'Log';
 export const OUTPUT_EDITOR_INPUT_ID = 'vs.output';
 
 /**
- * Output from any not defined channel is here
+ * Output panel id
  */
-export const DEFAULT_OUTPUT_CHANNEL = '';
+export const OUTPUT_PANEL_ID = 'workbench.panel.output';
 
 export const Extensions = {
 	OutputChannels: 'workbench.contributions.outputChannels'
 };
 
 export const OUTPUT_SERVICE_ID = 'outputService';
+
+export const MAX_OUTPUT_LENGTH = 10000 /* Max. number of output lines to show in output */ * 100 /* Guestimated chars per line */;
 
 /**
  * The output event informs when new output got received.
@@ -54,7 +56,6 @@ export interface IOutputService {
 	/**
 	 * Appends output to the given channel.
 	 */
-	append(output: string): void;
 	append(channel: string, output: string): void;
 
 	/**
@@ -63,7 +64,7 @@ export interface IOutputService {
 	 * The optional channel allows to ask for output for a specific channel. If you leave the
 	 * channel out, you get the default channels output.
 	 */
-	getOutput(channel?: string): string;
+	getOutput(channel: string): string;
 
 	/**
 	 * Returns all channels that received output in the current session.
@@ -71,12 +72,17 @@ export interface IOutputService {
 	getChannels(): string[];
 
 	/**
+	 * Returns the name of the currently opened channel.
+	 */
+	getActiveChannel(): string;
+
+	/**
 	 * Clears all received output.
 	 *
 	 * The optional channel allows to clear the output for a specific channel. If you leave the
 	 * channel out, you get clear the default channels output.
 	 */
-	clearOutput(channel?: string): void;
+	clearOutput(channel: string): void;
 
 	/**
 	 * Opens the output for the given channel
@@ -84,7 +90,7 @@ export interface IOutputService {
 	 * The optional channel allows to show the output for a specific channel. If you leave the
 	 * channel out, you show the default channels output.
 	 */
-	showOutput(channel?: string, sideBySide?: boolean|Position, preserveFocus?: boolean): TPromise<IEditor>;
+	showOutput(channel: string, preserveFocus?: boolean): TPromise<IEditor>;
 
 	/**
 	 * Allows to register on Output events
@@ -95,6 +101,11 @@ export interface IOutputService {
 	 * Allows to register on a new Output channel getting filled with output
 	 */
 	onOutputChannel: Event<string>;
+
+	/**
+	 * Allows to register on active output channel change
+	 */
+	onActiveOutputChannel: Event<string>;
 }
 
 export interface IOutputChannelRegistry {

@@ -4,9 +4,9 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
-import EditorCommon = require('vs/editor/common/editorCommon');
+import {IEditorPosition, IPosition, IRange} from 'vs/editor/common/editorCommon';
 
-export class Position implements EditorCommon.IEditorPosition {
+export class Position implements IEditorPosition {
 
 	public lineNumber: number;
 	public column: number;
@@ -16,28 +16,45 @@ export class Position implements EditorCommon.IEditorPosition {
 		this.column = column;
 	}
 
-	public equals(other:EditorCommon.IPosition): boolean {
-		return (!!other && this.lineNumber === other.lineNumber && this.column === other.column);
+	public equals(other:IPosition): boolean {
+		return Position.equals(this, other);
 	}
-
-	public isBefore(other:EditorCommon.IPosition): boolean {
-		if (this.lineNumber < other.lineNumber) {
+	public static equals(a:IPosition, b:IPosition): boolean {
+		if (!a && !b) {
 			return true;
 		}
-		if (other.lineNumber < this.lineNumber) {
-			return false;
-		}
-		return this.column < other.column;
+		return (
+			!!a &&
+			!!b &&
+			a.lineNumber === b.lineNumber &&
+			a.column === b.column
+		);
 	}
 
-	public isBeforeOrEqual(other:EditorCommon.IPosition): boolean {
-		if (this.lineNumber < other.lineNumber) {
+	public isBefore(other:IPosition): boolean {
+		return Position.isBefore(this, other);
+	}
+	public static isBefore(a:IPosition, b:IPosition): boolean {
+		if (a.lineNumber < b.lineNumber) {
 			return true;
 		}
-		if (other.lineNumber < this.lineNumber) {
+		if (b.lineNumber < a.lineNumber) {
 			return false;
 		}
-		return this.column <= other.column;
+		return a.column < b.column;
+	}
+
+	public isBeforeOrEqual(other:IPosition): boolean {
+		return Position.isBeforeOrEqual(this, other);
+	}
+	public static isBeforeOrEqual(a:IPosition, b:IPosition): boolean {
+		if (a.lineNumber < b.lineNumber) {
+			return true;
+		}
+		if (b.lineNumber < a.lineNumber) {
+			return false;
+		}
+		return a.column <= b.column;
 	}
 
 	public clone(): Position {
@@ -50,11 +67,11 @@ export class Position implements EditorCommon.IEditorPosition {
 
 	// ---
 
-	public static lift(pos:EditorCommon.IPosition): EditorCommon.IEditorPosition {
+	public static lift(pos:IPosition): IEditorPosition {
 		return new Position(pos.lineNumber, pos.column);
 	}
 
-	public static isIPosition(obj: any): obj is EditorCommon.IPosition {
+	public static isIPosition(obj: any): obj is IPosition {
 		return (
 			obj
 			&& (typeof obj.lineNumber === 'number')
@@ -62,7 +79,7 @@ export class Position implements EditorCommon.IEditorPosition {
 		);
 	}
 
-	public static asEmptyRange(position:EditorCommon.IPosition):EditorCommon.IRange {
+	public static asEmptyRange(position:IPosition):IRange {
 		return {
 			startLineNumber: position.lineNumber,
 			startColumn: position.column,
@@ -71,14 +88,14 @@ export class Position implements EditorCommon.IEditorPosition {
 		};
 	}
 
-	public static startPosition(range:EditorCommon.IRange):EditorCommon.IPosition {
+	public static startPosition(range:IRange):IPosition {
 		return {
 			lineNumber: range.startLineNumber,
 			column: range.startColumn
 		};
 	}
 
-	public static endPosition(range:EditorCommon.IRange):EditorCommon.IPosition {
+	public static endPosition(range:IRange):IPosition {
 		return {
 			lineNumber: range.endLineNumber,
 			column: range.endColumn

@@ -6,12 +6,12 @@
 'use strict';
 
 import 'vs/css!./selections';
+import * as editorCommon from 'vs/editor/common/editorCommon';
 import {ViewEventHandler} from 'vs/editor/common/viewModel/viewEventHandler';
-import EditorBrowser = require('vs/editor/browser/editorBrowser');
-import EditorCommon = require('vs/editor/common/editorCommon');
+import {IDynamicViewOverlay, IRenderingContext, IViewContext} from 'vs/editor/browser/editorBrowser';
 
-type HorizontalRange = EditorBrowser.HorizontalRange;
-type LineVisibleRanges = EditorBrowser.LineVisibleRanges;
+type HorizontalRange = editorCommon.HorizontalRange;
+type LineVisibleRanges = editorCommon.LineVisibleRanges;
 
 interface IRenderResult {
 	[lineNumber:string]:string[];
@@ -69,7 +69,7 @@ const isIEWithZoomingIssuesNearRoundedBorders = (
 );
 
 
-export class SelectionsOverlay extends ViewEventHandler implements EditorBrowser.IDynamicViewOverlay {
+export class SelectionsOverlay extends ViewEventHandler implements IDynamicViewOverlay {
 
 	private static SELECTION_CLASS_NAME = 'selected-text';
 	private static SELECTION_TOP_LEFT = 'top-left-radius';
@@ -80,11 +80,11 @@ export class SelectionsOverlay extends ViewEventHandler implements EditorBrowser
 
 	private static ROUNDED_PIECE_WIDTH = 10;
 
-	private _context:EditorBrowser.IViewContext;
-	private _selections:EditorCommon.IEditorRange[];
+	private _context:IViewContext;
+	private _selections:editorCommon.IEditorRange[];
 	private _renderResult:IRenderResult;
 
-	constructor(context:EditorBrowser.IViewContext) {
+	constructor(context:IViewContext) {
 		super();
 		this._context = context;
 		this._selections = [];
@@ -104,37 +104,37 @@ export class SelectionsOverlay extends ViewEventHandler implements EditorBrowser
 	public onModelFlushed(): boolean {
 		return true;
 	}
-	public onModelDecorationsChanged(e:EditorCommon.IViewDecorationsChangedEvent): boolean {
+	public onModelDecorationsChanged(e:editorCommon.IViewDecorationsChangedEvent): boolean {
 		// true for inline decorations that can end up relayouting text
 		return e.inlineDecorationsChanged;
 	}
-	public onModelLinesDeleted(e:EditorCommon.IViewLinesDeletedEvent): boolean {
+	public onModelLinesDeleted(e:editorCommon.IViewLinesDeletedEvent): boolean {
 		return true;
 	}
-	public onModelLineChanged(e:EditorCommon.IViewLineChangedEvent): boolean {
+	public onModelLineChanged(e:editorCommon.IViewLineChangedEvent): boolean {
 		return true;
 	}
-	public onModelLinesInserted(e:EditorCommon.IViewLinesInsertedEvent): boolean {
+	public onModelLinesInserted(e:editorCommon.IViewLinesInsertedEvent): boolean {
 		return true;
 	}
-	public onCursorPositionChanged(e:EditorCommon.IViewCursorPositionChangedEvent): boolean {
+	public onCursorPositionChanged(e:editorCommon.IViewCursorPositionChangedEvent): boolean {
 		return false;
 	}
-	public onCursorSelectionChanged(e:EditorCommon.IViewCursorSelectionChangedEvent): boolean {
+	public onCursorSelectionChanged(e:editorCommon.IViewCursorSelectionChangedEvent): boolean {
 		this._selections = [e.selection];
 		this._selections = this._selections.concat(e.secondarySelections);
 		return true;
 	}
-	public onCursorRevealRange(e:EditorCommon.IViewRevealRangeEvent): boolean {
+	public onCursorRevealRange(e:editorCommon.IViewRevealRangeEvent): boolean {
 		return false;
 	}
-	public onConfigurationChanged(e:EditorCommon.IConfigurationChangedEvent): boolean {
+	public onConfigurationChanged(e:editorCommon.IConfigurationChangedEvent): boolean {
 		return true;
 	}
-	public onLayoutChanged(layoutInfo:EditorCommon.IEditorLayoutInfo): boolean {
+	public onLayoutChanged(layoutInfo:editorCommon.IEditorLayoutInfo): boolean {
 		return true;
 	}
-	public onScrollChanged(e:EditorCommon.IScrollEvent): boolean {
+	public onScrollChanged(e:editorCommon.IScrollEvent): boolean {
 		return e.vertical;
 	}
 	public onZonesChanged(): boolean {
@@ -272,7 +272,7 @@ export class SelectionsOverlay extends ViewEventHandler implements EditorBrowser
 		}
 	}
 
-	private _getVisibleRangesWithStyle(selection: EditorCommon.IEditorRange, ctx: EditorBrowser.IRenderingContext, previousFrame:LineVisibleRangesWithStyle[]): LineVisibleRangesWithStyle[] {
+	private _getVisibleRangesWithStyle(selection: editorCommon.IEditorRange, ctx: IRenderingContext, previousFrame:LineVisibleRangesWithStyle[]): LineVisibleRangesWithStyle[] {
 		let _linesVisibleRanges = ctx.linesVisibleRangesForRange(selection, true) || [];
 		let linesVisibleRanges = _linesVisibleRanges.map(toStyled);
 		let visibleRangesHaveGaps = this._visibleRangesHaveGaps(linesVisibleRanges);
@@ -285,10 +285,12 @@ export class SelectionsOverlay extends ViewEventHandler implements EditorBrowser
 		return linesVisibleRanges;
 	}
 
-	private _createSelectionPiece(lineOutput:string[], height:string, className:string, left:number, width:number): void {
+	private _createSelectionPiece(lineOutput:string[], top:number, height:string, className:string, left:number, width:number): void {
 		lineOutput.push('<div class="cslr ');
 		lineOutput.push(className);
-		lineOutput.push('" style="left:');
+		lineOutput.push('" style="top:');
+		lineOutput.push(top.toString());
+		lineOutput.push('px;left:');
 		lineOutput.push(left.toString());
 		lineOutput.push('px;width:');
 		lineOutput.push(width.toString());
@@ -297,25 +299,33 @@ export class SelectionsOverlay extends ViewEventHandler implements EditorBrowser
 		lineOutput.push('px;"></div>');
 	}
 
-	private _actualRenderOneSelection(output:IRenderResult, visibleRanges:LineVisibleRangesWithStyle[]): number {
+	private _actualRenderOneSelection(output:IRenderResult, hasMultipleSelections:boolean, visibleRanges:LineVisibleRangesWithStyle[]): number {
 		var visibleRangesHaveStyle = (visibleRanges.length > 0 && visibleRanges[0].ranges[0].startStyle),
 			lineVisibleRanges:LineVisibleRangesWithStyle,
 			lineOutput: string[],
 			className:string,
-			lineHeight = this._context.configuration.editor.lineHeight.toString(),
+			fullLineHeight = (this._context.configuration.editor.lineHeight).toString(),
+			reducedLineHeight = (this._context.configuration.editor.lineHeight - 1).toString(),
 			i:number, len:number,
 			j:number, lenJ:number,
 			piecesCount = 0,
 			visibleRange:HorizontalRangeWithStyle;
 
+		let firstLineNumber = (visibleRanges.length > 0 ? visibleRanges[0].lineNumber : 0);
+		let lastLineNumber = (visibleRanges.length > 0 ? visibleRanges[visibleRanges.length - 1].lineNumber : 0);
+
 		for (i = 0, len = visibleRanges.length; i < len; i++) {
 			lineVisibleRanges = visibleRanges[i];
+			let lineNumber = lineVisibleRanges.lineNumber;
 
-			if (output.hasOwnProperty(lineVisibleRanges.lineNumber.toString())) {
-				lineOutput = output[lineVisibleRanges.lineNumber.toString()];
+			let lineHeight = hasMultipleSelections ? (lineNumber === lastLineNumber || lineNumber === firstLineNumber ? reducedLineHeight : fullLineHeight) : fullLineHeight;
+			let top = hasMultipleSelections ? (lineNumber === firstLineNumber ? 1 : 0) : 0;
+
+			if (output.hasOwnProperty(lineNumber.toString())) {
+				lineOutput = output[lineNumber.toString()];
 			} else {
 				lineOutput = [];
-				output[lineVisibleRanges.lineNumber.toString()] = lineOutput;
+				output[lineNumber.toString()] = lineOutput;
 			}
 
 			for (j = 0, lenJ = lineVisibleRanges.ranges.length; j < lenJ; j++) {
@@ -327,7 +337,7 @@ export class SelectionsOverlay extends ViewEventHandler implements EditorBrowser
 
 						// First comes the selection (blue layer)
 						piecesCount++;
-						this._createSelectionPiece(lineOutput, lineHeight, SelectionsOverlay.SELECTION_CLASS_NAME, visibleRange.left - SelectionsOverlay.ROUNDED_PIECE_WIDTH, SelectionsOverlay.ROUNDED_PIECE_WIDTH);
+						this._createSelectionPiece(lineOutput, top, lineHeight, SelectionsOverlay.SELECTION_CLASS_NAME, visibleRange.left - SelectionsOverlay.ROUNDED_PIECE_WIDTH, SelectionsOverlay.ROUNDED_PIECE_WIDTH);
 
 						// Second comes the background (white layer) with inverse border radius
 						className = SelectionsOverlay.EDITOR_BACKGROUND_CLASS_NAME;
@@ -338,14 +348,14 @@ export class SelectionsOverlay extends ViewEventHandler implements EditorBrowser
 							className += ' ' + SelectionsOverlay.SELECTION_BOTTOM_RIGHT;
 						}
 						piecesCount++;
-						this._createSelectionPiece(lineOutput, lineHeight, className, visibleRange.left - SelectionsOverlay.ROUNDED_PIECE_WIDTH, SelectionsOverlay.ROUNDED_PIECE_WIDTH);
+						this._createSelectionPiece(lineOutput, top, lineHeight, className, visibleRange.left - SelectionsOverlay.ROUNDED_PIECE_WIDTH, SelectionsOverlay.ROUNDED_PIECE_WIDTH);
 					}
 					if (visibleRange.endStyle.top === CornerStyle.INTERN || visibleRange.endStyle.bottom === CornerStyle.INTERN) {
 						// Reverse rounded corner to the right
 
 						// First comes the selection (blue layer)
 						piecesCount++;
-						this._createSelectionPiece(lineOutput, lineHeight, SelectionsOverlay.SELECTION_CLASS_NAME, visibleRange.left + visibleRange.width, SelectionsOverlay.ROUNDED_PIECE_WIDTH);
+						this._createSelectionPiece(lineOutput, top, lineHeight, SelectionsOverlay.SELECTION_CLASS_NAME, visibleRange.left + visibleRange.width, SelectionsOverlay.ROUNDED_PIECE_WIDTH);
 
 						// Second comes the background (white layer) with inverse border radius
 						className = SelectionsOverlay.EDITOR_BACKGROUND_CLASS_NAME;
@@ -356,7 +366,7 @@ export class SelectionsOverlay extends ViewEventHandler implements EditorBrowser
 							className += ' ' + SelectionsOverlay.SELECTION_BOTTOM_LEFT;
 						}
 						piecesCount++;
-						this._createSelectionPiece(lineOutput, lineHeight, className, visibleRange.left + visibleRange.width, SelectionsOverlay.ROUNDED_PIECE_WIDTH);
+						this._createSelectionPiece(lineOutput, top, lineHeight, className, visibleRange.left + visibleRange.width, SelectionsOverlay.ROUNDED_PIECE_WIDTH);
 					}
 				}
 
@@ -376,7 +386,7 @@ export class SelectionsOverlay extends ViewEventHandler implements EditorBrowser
 					}
 				}
 				piecesCount++;
-				this._createSelectionPiece(lineOutput, lineHeight, className, visibleRange.left, visibleRange.width);
+				this._createSelectionPiece(lineOutput, top, lineHeight, className, visibleRange.left, visibleRange.width);
 			}
 		}
 
@@ -384,14 +394,14 @@ export class SelectionsOverlay extends ViewEventHandler implements EditorBrowser
 	}
 
 	private _previousFrameVisibleRangesWithStyle: LineVisibleRangesWithStyle[][] = [];
-	public shouldCallRender2(ctx:EditorBrowser.IRenderingContext): boolean {
+	public shouldCallRender2(ctx:IRenderingContext): boolean {
 		if (!this.shouldRender) {
 			return false;
 		}
 		this.shouldRender = false;
 
 		var output: IRenderResult = {},
-			selection:EditorCommon.IEditorRange,
+			selection:editorCommon.IEditorRange,
 			visibleRangesWithStyle:LineVisibleRangesWithStyle[],
 			piecesCount = 0,
 			i:number,
@@ -406,7 +416,7 @@ export class SelectionsOverlay extends ViewEventHandler implements EditorBrowser
 
 			visibleRangesWithStyle = this._getVisibleRangesWithStyle(selection, ctx, this._previousFrameVisibleRangesWithStyle[i]);
 			thisFrameVisibleRangesWithStyle.push(visibleRangesWithStyle);
-			piecesCount += this._actualRenderOneSelection(output, visibleRangesWithStyle);
+			piecesCount += this._actualRenderOneSelection(output, this._selections.length > 1, visibleRangesWithStyle);
 		}
 
 		this._previousFrameVisibleRangesWithStyle = thisFrameVisibleRangesWithStyle;

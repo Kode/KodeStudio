@@ -9,7 +9,7 @@ import * as assert from 'assert';
 import {Promise, TPromise} from 'vs/base/common/winjs.base';
 import paths = require('vs/base/common/paths');
 import URI from 'vs/base/common/uri';
-import {create} from 'vs/platform/instantiation/common/instantiationService';
+import {createInstantiationService} from 'vs/platform/instantiation/common/instantiationService';
 import {BaseEditor} from 'vs/workbench/browser/parts/editor/baseEditor';
 import {EditorInput, EditorOptions, TextEditorOptions} from 'vs/workbench/common/editor';
 import {StringEditorInput} from 'vs/workbench/common/editor/stringEditorInput';
@@ -55,11 +55,11 @@ class TestEditorPart implements IEditorPart {
 	}
 
 	public setEditors(inputs: EditorInput[]): Promise {
-		return Promise.as([]);
+		return TPromise.as([]);
 	}
 
 	public closeEditors(othersOnly?: boolean): Promise {
-		return Promise.as(null);
+		return TPromise.as(null);
 	}
 
 	public openEditor(input?: EditorInput, options?: EditorOptions, sideBySide?: boolean): TPromise<BaseEditor>;
@@ -69,7 +69,11 @@ class TestEditorPart implements IEditorPart {
 		openedEditorOptions = options;
 		openedEditorPosition = arg;
 
-		return Promise.as(activeEditor);
+		return TPromise.as(activeEditor);
+	}
+
+	public activateEditor(editor: IEditor): void {
+		// Unsupported
 	}
 
 	public getActiveEditor(): BaseEditor {
@@ -100,7 +104,7 @@ class TestEditorPart implements IEditorPart {
 class TestViewletService implements IViewletService {
 	public serviceId = IViewletService;
 	public openViewlet(id: string, focus?: boolean): Promise {
-		return Promise.as(null);
+		return TPromise.as(null);
 	}
 
 	public getActiveViewlet(): IViewlet {
@@ -137,14 +141,14 @@ class TestProgressBar {
 	}
 
 	public infinite() {
-		delete this.fDone;
+		this.fDone = null;
 		this.fInfinite = true;
 
 		return this;
 	}
 
 	public total(total: number) {
-		delete this.fDone;
+		this.fDone = null;
 		this.fTotal = total;
 
 		return this;
@@ -155,7 +159,7 @@ class TestProgressBar {
 	}
 
 	public worked(worked: number) {
-		delete this.fDone;
+		this.fDone = null;
 
 		if (this.fWorked) {
 			this.fWorked += worked;
@@ -169,9 +173,9 @@ class TestProgressBar {
 	public done() {
 		this.fDone = true;
 
-		delete this.fInfinite;
-		delete this.fWorked;
-		delete this.fTotal;
+		this.fInfinite = null;
+		this.fWorked = null;
+		this.fTotal = null;
 
 		return this;
 	}
@@ -193,24 +197,24 @@ suite('Workbench UI Services', () => {
 	test('WorkbenchEditorService', function() {
 		const TestFileService = {
 			resolveContent: function(resource) {
-				return Promise.as({
+				return TPromise.as({
 					resource: resource,
 					value: 'Hello Html',
 					etag: 'index.txt',
 					mime: 'text/plain',
-					charset: 'utf8',
+					encoding: 'utf8',
 					mtime: new Date().getTime(),
 					name: paths.basename(resource.fsPath)
 				});
 			},
 
 			updateContent: function(res) {
-				return Promise.timeout(1).then(() => {
+				return TPromise.timeout(1).then(() => {
 					return {
 						resource: res,
 						etag: 'index.txt',
 						mime: 'text/plain',
-						charset: 'utf8',
+						encoding: 'utf8',
 						mtime: new Date().getTime(),
 						name: paths.basename(res.fsPath)
 					};
@@ -252,7 +256,7 @@ suite('Workbench UI Services', () => {
 			lifecycleService: new TestLifecycleService(),
 			fileService: TestFileService
 		};
-		let inst = create(services);
+		let inst = createInstantiationService(services);
 
 		let textFileService = inst.createInstance(<any>TextFileService);
 		inst.registerService('textFileService', textFileService);
@@ -355,7 +359,7 @@ suite('Workbench UI Services', () => {
 			configurationService: new TestConfigurationService()
 		};
 
-		let inst = create(services);
+		let inst = createInstantiationService(services);
 		let textFileService = inst.createInstance(<any>TextFileService);
 		inst.registerService('textFileService', textFileService);
 		services['instantiationService'] = inst;
@@ -410,10 +414,10 @@ suite('Workbench UI Services', () => {
 		eventService.emit(EventType.EDITOR_CLOSED, { editorId: 'test.scopeId' });
 		assert(!service.isActive);
 
-		eventService.emit(EventType.VIEWLET_OPENED, { viewletId: 'test.scopeId' });
+		eventService.emit(EventType.COMPOSITE_OPENED, { compositeId: 'test.scopeId' });
 		assert(service.isActive);
 
-		eventService.emit(EventType.VIEWLET_CLOSED, { viewletId: 'test.scopeId' });
+		eventService.emit(EventType.COMPOSITE_CLOSED, { compositeId: 'test.scopeId' });
 		assert(!service.isActive);
 	});
 
@@ -457,12 +461,12 @@ suite('Workbench UI Services', () => {
 		assert.strictEqual(80, testProgressBar.fTotal);
 
 		// Acive: Show While
-		let p = Promise.as(null);
+		let p = TPromise.as(null);
 		service.showWhile(p).then(() => {
 			assert.strictEqual(true, testProgressBar.fDone);
 
 			eventService.emit(EventType.EDITOR_CLOSED, { editorId: 'test.scopeId' });
-			p = Promise.as(null);
+			p = TPromise.as(null);
 			service.showWhile(p).then(() => {
 				assert.strictEqual(true, testProgressBar.fDone);
 

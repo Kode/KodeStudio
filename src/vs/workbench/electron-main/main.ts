@@ -5,40 +5,58 @@
 
 'use strict';
 
-import {app, shell, dialog} from 'electron';
+import {app} from 'electron';
 import fs = require('fs');
 import nls = require('vs/nls');
 import {assign} from 'vs/base/common/objects';
 import platform = require('vs/base/common/platform');
 import env = require('vs/workbench/electron-main/env');
 import windows = require('vs/workbench/electron-main/windows');
+import window = require('vs/workbench/electron-main/window');
 import lifecycle = require('vs/workbench/electron-main/lifecycle');
 import menu = require('vs/workbench/electron-main/menus');
 import settings = require('vs/workbench/electron-main/settings');
 import {Instance as UpdateManager} from 'vs/workbench/electron-main/update-manager';
 import {Server, serve, connect} from 'vs/base/node/service.net';
 import {getUserEnvironment} from 'vs/base/node/env';
-import {Promise, TPromise} from 'vs/base/common/winjs.base';
+import {TPromise} from 'vs/base/common/winjs.base';
 import {GitAskpassService} from 'vs/workbench/parts/git/electron-main/askpassService';
 import {spawnSharedProcess} from 'vs/workbench/electron-main/sharedProcess';
 import {Mutex} from 'windows-mutex';
 
 export class LaunchService {
-	public start(args: env.ICommandLineArguments, userEnv: env.IProcessEnvironment): Promise {
+	public start(args: env.ICommandLineArguments, userEnv: env.IProcessEnvironment): TPromise<void> {
 		env.log('Received data from other instance', args);
 
 		// Otherwise handle in windows manager
-		if (!!args.pluginDevelopmentPath) {
+		let usedWindows: window.VSCodeWindow[];
+		if (!!args.extensionDevelopmentPath) {
 			windows.manager.openPluginDevelopmentHostWindow({ cli: args, userEnv: userEnv });
 		} else if (args.pathArguments.length === 0 && args.openNewWindow) {
-			windows.manager.open({ cli: args, userEnv: userEnv, forceNewWindow: true, forceEmpty: true });
+			usedWindows = windows.manager.open({ cli: args, userEnv: userEnv, forceNewWindow: true, forceEmpty: true });
 		} else if (args.pathArguments.length === 0) {
-			windows.manager.focusLastActive(args);
+			usedWindows = [windows.manager.focusLastActive(args)];
 		} else {
-			windows.manager.open({ cli: args, userEnv: userEnv, forceNewWindow: !args.openInSameWindow });
+			usedWindows = windows.manager.open({ cli: args, userEnv: userEnv, forceNewWindow: args.waitForWindowClose || args.openNewWindow, preferNewWindow: !args.openInSameWindow });
 		}
 
-		return Promise.as(null);
+		// If the other instance is waiting to be killed, we hook up a window listener if one window
+		// is being used and only then resolve the startup promise which will kill this second instance
+		if (args.waitForWindowClose && usedWindows && usedWindows.length === 1 && usedWindows[0]) {
+			const windowId = usedWindows[0].id;
+
+			return new TPromise<void>((c, e) => {
+
+				const unbind = windows.onClose(id => {
+					if (id === windowId) {
+						unbind();
+						c(null);
+					}
+				});
+			});
+		}
+
+		return TPromise.as(null);
 	}
 }
 
@@ -125,7 +143,8 @@ function main(ipcServer: Server, userEnv: env.IProcessEnvironment): void {
 			ipcServer = null;
 		}
 
-		sharedProcess.kill();
+		sharedProcess.dispose();
+
 		if (windowsMutex) {
 			windowsMutex.release();
 		}
@@ -160,12 +179,12 @@ function main(ipcServer: Server, userEnv: env.IProcessEnvironment): void {
 	UpdateManager.initialize();
 
 	// Open our first window
-	if (env.cliArgs.openNewWindow) {
-		windows.manager.open({ cli: env.cliArgs, forceNewWindow: true, forceEmpty: true }); // empty window if "-n" was used
+	if (env.cliArgs.openNewWindow && env.cliArgs.pathArguments.length === 0) {
+		windows.manager.open({ cli: env.cliArgs, forceNewWindow: true, forceEmpty: true }); // new window if "-n" was used without paths
 	} else if (global.macOpenFiles && global.macOpenFiles.length && (!env.cliArgs.pathArguments || !env.cliArgs.pathArguments.length)) {
 		windows.manager.open({ cli: env.cliArgs, pathsToOpen: global.macOpenFiles }); // mac: open-file event received on startup
 	} else {
-		windows.manager.open({ cli: env.cliArgs }); // default: read paths from cli
+		windows.manager.open({ cli: env.cliArgs, forceNewWindow: env.cliArgs.openNewWindow }); // default: read paths from cli
 	}
 }
 
@@ -173,32 +192,36 @@ function setupIPC(): TPromise<Server> {
 	function setup(retry: boolean): TPromise<Server> {
 		return serve(env.mainIPCHandle).then(null, err => {
 			if (err.code !== 'EADDRINUSE') {
-				return Promise.wrapError(err);
+				return TPromise.wrapError(err);
+			}
+
+			// Since we are the second instance, we do not want to show the dock
+			if (platform.isMacintosh) {
+				app.dock.hide();
+			}
+
+			// Tests from CLI require to be the only instance currently (TODO@Ben support multiple instances and output)
+			if (env.isTestingFromCli) {
+				const errorMsg = 'Running extension tests from the command line is currently only supported if no other instance of Code is running.';
+				console.error(errorMsg);
+
+				return TPromise.wrapError(errorMsg);
 			}
 
 			// there's a running instance, let's connect to it
 			return connect(env.mainIPCHandle).then(
 				client => {
-
-					// Tests from CLI require to be the only instance currently (TODO@Ben support multiple instances and output)
-					if (env.isTestingFromCli) {
-						const errorMsg = 'Running extension tests from the command line is currently only supported if no other instance of Code is running.';
-						console.error(errorMsg);
-
-						return Promise.wrapError(errorMsg);
-					}
-
 					env.log('Sending env to running instance...');
 
 					const service = client.getService<LaunchService>('LaunchService', LaunchService);
 
 					return service.start(env.cliArgs, process.env)
 						.then(() => client.dispose())
-						.then(() => Promise.wrapError('Sent env to running instance. Terminating...'));
+						.then(() => TPromise.wrapError('Sent env to running instance. Terminating...'));
 				},
 				err => {
 					if (!retry || platform.isWindows || err.code !== 'ECONNREFUSED') {
-						return Promise.wrapError(err);
+						return TPromise.wrapError(err);
 					}
 
 					// it happens on Linux and OS X that the pipe is left behind
@@ -208,7 +231,7 @@ function setupIPC(): TPromise<Server> {
 						fs.unlinkSync(env.mainIPCHandle);
 					} catch (e) {
 						env.log('Fatal error deleting obsolete instance handle', e);
-						return Promise.wrapError(e);
+						return TPromise.wrapError(e);
 					}
 
 					return setup(false);
@@ -225,7 +248,9 @@ function setupIPC(): TPromise<Server> {
 getUserEnvironment()
 	.then(userEnv => {
 		assign(process.env, userEnv);
-
+		// Make sure the NLS Config travels to the rendered process
+		// See also https://github.com/Microsoft/vscode/issues/4558
+		userEnv['VSCODE_NLS_CONFIG'] = process.env['VSCODE_NLS_CONFIG'];
 		return setupIPC()
 			.then(ipcServer => main(ipcServer, userEnv));
 	})

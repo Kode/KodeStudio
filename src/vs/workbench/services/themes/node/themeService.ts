@@ -7,43 +7,42 @@
 import {TPromise} from 'vs/base/common/winjs.base';
 import nls = require('vs/nls');
 import Paths = require('vs/base/common/paths');
+import Json = require('vs/base/common/json');
 import Themes = require('vs/platform/theme/common/themes');
 import {IThemeExtensionPoint} from 'vs/platform/theme/common/themeExtensionPoint';
-import {IPluginService} from 'vs/platform/plugins/common/plugins';
-import {PluginsRegistry, IMessageCollector} from 'vs/platform/plugins/common/pluginsRegistry';
-import {createDecorator, ServiceIdentifier} from 'vs/platform/instantiation/common/instantiation';
+import {IExtensionService} from 'vs/platform/extensions/common/extensions';
+import {ExtensionsRegistry, IExtensionMessageCollector} from 'vs/platform/extensions/common/extensionsRegistry';
+import {IThemeService, IThemeData, DEFAULT_THEME_ID} from 'vs/workbench/services/themes/common/themeService';
 
 import plist = require('vs/base/node/plist');
 import pfs = require('vs/base/node/pfs');
 
-export let IThemeService = createDecorator<IThemeService>('themeService');
-
-export interface IThemeService {
-	serviceId: ServiceIdentifier<any>;
-	getTheme(themeId: string): TPromise<ITheme>;
-	loadThemeCSS(themeId: string): TPromise<boolean>;
-	getThemes(): TPromise<ITheme[]>;
-}
-
-export interface ITheme {
-	id: string;
-	label: string;
-	description?: string;
-	path: string;
-	styleSheetContent?: string;
-}
-
 // implementation
 
-let defaultBaseTheme = Themes.toId(Themes.BaseTheme.VS_DARK);
+let defaultBaseTheme = Themes.getBaseThemeId(DEFAULT_THEME_ID);
 
-let themesExtPoint = PluginsRegistry.registerExtensionPoint<IThemeExtensionPoint[]>('themes', {
+const defaultThemeExtensionId = 'vscode-theme-defaults';
+const oldDefaultThemeExtensionId = 'vscode-theme-colorful-defaults';
+
+function validateThemeId(theme: string) : string {
+	// migrations
+	switch (theme) {
+		case 'vs': return `vs ${defaultThemeExtensionId}-themes-light_vs-json`;
+		case 'vs-dark': return `vs-dark ${defaultThemeExtensionId}-themes-dark_vs-json`;
+		case 'hc-black': return `hc-black ${defaultThemeExtensionId}-themes-hc_black-json`;
+		case `vs ${oldDefaultThemeExtensionId}-themes-light_plus-tmTheme`: return `vs ${defaultThemeExtensionId}-themes-light_plus-json`;
+		case `vs-dark ${oldDefaultThemeExtensionId}-themes-dark_plus-tmTheme`: return `vs-dark ${defaultThemeExtensionId}-themes-dark_plus-json`;
+	}
+	return theme;
+}
+
+let themesExtPoint = ExtensionsRegistry.registerExtensionPoint<IThemeExtensionPoint[]>('themes', {
 	description: nls.localize('vscode.extension.contributes.themes', 'Contributes textmate color themes.'),
 	type: 'array',
-	default: [{ label: '{{label}}', uiTheme: 'vs-dark', path: './themes/{{id}}.tmTheme.' }],
+	defaultSnippets: [{ body: [{ label: '{{label}}', uiTheme: 'vs-dark', path: './themes/{{id}}.tmTheme.' }] }],
 	items: {
 		type: 'object',
-		default: { label: '{{label}}', uiTheme: 'vs-dark', path: './themes/{{id}}.tmTheme.' },
+		defaultSnippets: [{ body: { label: '{{label}}', uiTheme: 'vs-dark', path: './themes/{{id}}.tmTheme.' } }],
 		properties: {
 			label: {
 				description: nls.localize('vscode.extension.contributes.themes.label', 'Label of the color theme as shown in the UI.'),
@@ -51,7 +50,7 @@ let themesExtPoint = PluginsRegistry.registerExtensionPoint<IThemeExtensionPoint
 			},
 			uiTheme: {
 				description: nls.localize('vscode.extension.contributes.themes.uiTheme', 'Base theme defining the colors around the editor: \'vs\' is the light color theme, \'vs-dark\' is the dark color theme.'),
-				enum: ['vs', 'vs-dark']
+				enum: ['vs', 'vs-dark', 'hc-black']
 			},
 			path: {
 				description: nls.localize('vscode.extension.contributes.themes.path', 'Path of the tmTheme file. The path is relative to the extension folder and is typically \'./themes/themeFile.tmTheme\'.'),
@@ -61,12 +60,34 @@ let themesExtPoint = PluginsRegistry.registerExtensionPoint<IThemeExtensionPoint
 	}
 });
 
+interface ThemeSettingStyle {
+	background?: string;
+	foreground?: string;
+	fontStyle?: string;
+	caret?: string;
+	invisibles?: string;
+	lineHighlight?: string;
+	selection?: string;
+}
+
+interface ThemeSetting {
+	name?: string;
+	scope?: string | string[];
+	settings: ThemeSettingStyle[];
+}
+
+interface ThemeDocument {
+	name: string;
+	include: string;
+	settings: ThemeSetting[];
+}
+
 export class ThemeService implements IThemeService {
 	serviceId = IThemeService;
 
-	private knownThemes: ITheme[];
+	private knownThemes: IThemeData[];
 
-	constructor(private pluginService: IPluginService) {
+	constructor(private extensionService: IExtensionService) {
 		this.knownThemes = [];
 
 		themesExtPoint.setHandler((extensions) => {
@@ -76,7 +97,8 @@ export class ThemeService implements IThemeService {
 		});
 	}
 
-	public getTheme(themeId: string): TPromise<ITheme> {
+	public loadTheme(themeId: string): TPromise<IThemeData> {
+		themeId = validateThemeId(themeId);
 		return this.getThemes().then(allThemes => {
 			let themes = allThemes.filter(t => t.id === themeId);
 			if (themes.length > 0) {
@@ -86,22 +108,22 @@ export class ThemeService implements IThemeService {
 		});
 	}
 
-	public loadThemeCSS(themeId: string): TPromise<boolean> {
-		return this.getTheme(themeId).then(theme => {
+	public applyThemeCSS(themeId: string): TPromise<boolean> {
+		return this.loadTheme(themeId).then(theme => {
 			if (theme) {
-				return loadTheme(theme);
+				return applyTheme(theme);
 			}
 			return null;
 		});
 	}
 
-	public getThemes(): TPromise<ITheme[]> {
-		return this.pluginService.onReady().then(isReady => {
+	public getThemes(): TPromise<IThemeData[]> {
+		return this.extensionService.onReady().then(isReady => {
 			return this.knownThemes;
 		});
 	}
 
-	private onThemes(extensionFolderPath: string, extensionId: string, themes: IThemeExtensionPoint[], collector: IMessageCollector): void {
+	private onThemes(extensionFolderPath: string, extensionId: string, themes: IThemeExtensionPoint[], collector: IExtensionMessageCollector): void {
 		if (!Array.isArray(themes)) {
 			collector.error(nls.localize(
 				'reqarray',
@@ -137,21 +159,17 @@ export class ThemeService implements IThemeService {
 	}
 }
 
+
 function toCssSelector(str: string) {
 	return str.replace(/[^_\-a-zA-Z0-9]/g, '-');
 }
 
-function loadTheme(theme: ITheme): TPromise<boolean> {
+function applyTheme(theme: IThemeData): TPromise<boolean> {
 	if (theme.styleSheetContent) {
 		_applyRules(theme.styleSheetContent);
 	}
-
-	return pfs.readFile(theme.path).then(content => {
-		let parseResult = plist.parse(content.toString());
-		if (parseResult.errors && parseResult.errors.length) {
-			return TPromise.wrapError(new Error(nls.localize('error.cannotparse', "Problems parsing plist file: {0}", parseResult.errors.join(', '))));
-		}
-		let styleSheetContent = _processThemeObject(theme.id, parseResult.value);
+	return _loadThemeDocument(theme.path).then(themeDocument => {
+		let styleSheetContent = _processThemeObject(theme.id, themeDocument);
 		theme.styleSheetContent = styleSheetContent;
 		_applyRules(styleSheetContent);
 		return true;
@@ -160,11 +178,36 @@ function loadTheme(theme: ITheme): TPromise<boolean> {
 	});
 }
 
-function _processThemeObject(themeId: string, themeDocument: any): string {
+function _loadThemeDocument(themePath: string) : TPromise<ThemeDocument> {
+	return pfs.readFile(themePath).then(content => {
+		if (Paths.extname(themePath) === '.json') {
+			let errors: string[] = [];
+			let contentValue = <ThemeDocument> Json.parse(content.toString(), errors);
+			if (errors.length > 0) {
+				return TPromise.wrapError(new Error(nls.localize('error.cannotparsejson', "Problems parsing JSON theme file: {0}", errors.join(', '))));
+			}
+			if (contentValue.include) {
+				return _loadThemeDocument(Paths.join(Paths.dirname(themePath), contentValue.include)).then(includedValue => {
+					contentValue.settings = includedValue.settings.concat(contentValue.settings);
+					return TPromise.as(contentValue);
+				});
+			}
+			return TPromise.as(contentValue);
+		} else {
+			let parseResult = plist.parse(content.toString());
+			if (parseResult.errors && parseResult.errors.length) {
+				return TPromise.wrapError(new Error(nls.localize('error.cannotparse', "Problems parsing plist file: {0}", parseResult.errors.join(', '))));
+			}
+			return TPromise.as(parseResult.value);
+		}
+	});
+}
+
+function _processThemeObject(themeId: string, themeDocument: ThemeDocument): string {
 	let cssRules: string[] = [];
 
-	let themeSettings = themeDocument.settings;
-	let editorSettings = {
+	let themeSettings : ThemeSetting[] = themeDocument.settings;
+	let editorSettings : ThemeSettingStyle = {
 		background: void 0,
 		foreground: void 0,
 		caret: void 0,
@@ -176,14 +219,14 @@ function _processThemeObject(themeId: string, themeDocument: any): string {
 	let themeSelector = `${Themes.getBaseThemeId(themeId)}.${Themes.getSyntaxThemeId(themeId)}`;
 
 	if (Array.isArray(themeSettings)) {
-		themeSettings.forEach((s, index, arr) => {
+		themeSettings.forEach((s : ThemeSetting, index, arr) => {
 			if (index === 0 && !s.scope) {
 				editorSettings = s.settings;
 			} else {
-				let scope: string = s.scope;
-				let settings: string = s.settings;
+				let scope: string | string[] = s.scope;
+				let settings = s.settings;
 				if (scope && settings) {
-					let rules = scope.split(',');
+					let rules = Array.isArray(scope) ? <string[]> scope : scope.split(',');
 					let statements = _settingsToStatements(settings);
 					rules.forEach(rule => {
 						rule = rule.trim().replace(/ /g, '.'); // until we have scope hierarchy in the editor dom: replace spaces with .
@@ -214,11 +257,11 @@ function _processThemeObject(themeId: string, themeDocument: any): string {
 	}
 	if (editorSettings.lineHighlight) {
 		let lineHighlight = new Color(editorSettings.lineHighlight);
-		cssRules.push(`.monaco-editor.${themeSelector} .current-line { background-color: ${lineHighlight}; }`);
+		cssRules.push(`.monaco-editor.${themeSelector} .current-line { background-color: ${lineHighlight}; border:0; }`);
 	}
 	if (editorSettings.caret) {
 		let caret = new Color(editorSettings.caret);
-		cssRules.push(`.monaco-editor.${themeSelector} .cursor { background-color: ${caret}; }`);
+		cssRules.push(`.monaco-editor.${themeSelector} .cursor { background-color: ${caret}; border-color: ${caret}; }`);
 	}
 	if (editorSettings.invisibles) {
 		let invisibles = new Color(editorSettings.invisibles);
@@ -228,7 +271,7 @@ function _processThemeObject(themeId: string, themeDocument: any): string {
 	return cssRules.join('\n');
 }
 
-function _settingsToStatements(settings: any): string {
+function _settingsToStatements(settings: ThemeSettingStyle): string {
 	let statements: string[] = [];
 
 	for (let settingName in settings) {

@@ -1,9 +1,9 @@
 {
 	"nameShort": "Kode Studio",
 	"nameLong": "Kode Studio",
+	"applicationName": "kodestudio",
+	"dataFolderName": ".kodestudio",
 	"win32MutexName": "kodestudio",
-	"companyName": "KTX Software Development",
-	"copyright": "Copyright (C) 2016 KTX Software Development. All rights reserved",
 	"licenseUrl": "https://github.com/KTXSoftware/KodeStudio/blob/master/LICENSE.txt",
 	"darwinBundleIdentifier": "org.kodestudio",
 	"darwinApplicationCategoryType": "public.app-category.developer-tools",
@@ -25,7 +25,6 @@
 			"ico": "resources/win32/code_file.ico"
 		}
 	},
-	"dataFolderName": ".kodestudio",
 	"welcomePage": "resources/welcome.md",
 	"commit": "1ff9c91a284c1a5cb5b039f06bc001d4c414d2ee",
 	"date": "2016-01-21T21:34:58.895Z"

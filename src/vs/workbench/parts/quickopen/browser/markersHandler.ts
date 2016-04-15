@@ -16,6 +16,7 @@ import {PathLabelProvider} from 'vs/base/common/labels';
 import {ITree, IElementCallback} from 'vs/base/parts/tree/browser/tree';
 import Severity from 'vs/base/common/severity';
 import {QuickOpenHandler} from 'vs/workbench/browser/quickopen';
+import {BaseTextEditor} from 'vs/workbench/browser/parts/editor/textEditor';
 import {QuickOpenAction} from 'vs/workbench/browser/actions/quickOpenAction';
 import {Mode, IContext, IAutoFocus} from 'vs/base/parts/quickopen/common/quickOpen';
 import {QuickOpenEntryItem, QuickOpenModel} from 'vs/base/parts/quickopen/browser/quickOpenModel';
@@ -53,7 +54,7 @@ class MarkerEntry extends QuickOpenEntryItem {
 
 	public update(query: string): void {
 
-		if (this._marker.resource.scheme === network.schemas.inMemory) {
+		if (this._marker.resource.scheme === network.Schemas.inMemory) {
 			// ignore inmemory-models
 			this.setHidden(true);
 			return;
@@ -63,6 +64,10 @@ class MarkerEntry extends QuickOpenEntryItem {
 		const descHighlights = MarkerEntry._filter(query, this._description);
 		this.setHighlights(labelHighlights, descHighlights);
 		this.setHidden(!labelHighlights && !descHighlights);
+	}
+
+	public getAriaLabel(): string {
+		return nls.localize('markerAriaLabel', "{0}, errors and warnings", this._label);
 	}
 
 	public getHeight(): number {
@@ -83,13 +88,13 @@ class MarkerEntry extends QuickOpenEntryItem {
 		dom.addClass(icon, `severity ${Severity.toString(this._marker.severity).toLowerCase()}`);
 		row1.appendChild(icon);
 		const labelContainer = document.createElement('div');
-		dom.addClass(labelContainer, 'inline')
+		dom.addClass(labelContainer, 'inline');
 		new HighlightedLabel(labelContainer).set(this._label, labelHighlights);
 		row1.appendChild(labelContainer);
 
 		// fill second row with descriptions
 		const descContainer = document.createElement('div');
-		dom.addClass(descContainer, 'inline description')
+		dom.addClass(descContainer, 'inline description');
 		new HighlightedLabel(descContainer).set(this._description, descHighlights);
 		row2.appendChild(descContainer);
 
@@ -160,13 +165,18 @@ export class MarkersHandler extends QuickOpenHandler {
 		@IMarkerService markerService: IMarkerService,
 		@IWorkbenchEditorService editorService: IWorkbenchEditorService,
 		@ICodeEditorService codeEditorService: ICodeEditorService,
-		@IWorkspaceContextService contextService: IWorkspaceContextService) {
+		@IWorkspaceContextService contextService: IWorkspaceContextService
+	) {
 		super();
 
 		this._markerService = markerService;
 		this._editorService = editorService;
 		this._codeEditorService = codeEditorService;
 		this._contextService = contextService;
+	}
+
+	public getAriaLabel(): string {
+		return nls.localize('markersHandlerAriaLabel', "Type to narrow down errors and warnings");
 	}
 
 	public getResults(searchValue: string): TPromise<QuickOpenModel> {
@@ -181,8 +191,8 @@ export class MarkersHandler extends QuickOpenHandler {
 			// 2nd viewstate
 			const editor = this._editorService.getActiveEditor();
 			let viewState: IEditorViewState;
-			if (editor) {
-				viewState = (<ICommonCodeEditor>editor.getControl()).saveViewState();
+			if (editor instanceof BaseTextEditor) {
+				viewState = editor.getControl().saveViewState();
 			}
 
 			this._activeSession = [model, viewState];

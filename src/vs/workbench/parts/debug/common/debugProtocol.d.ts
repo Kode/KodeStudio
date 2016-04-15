@@ -53,7 +53,8 @@ declare module DebugProtocol {
 		The sequence of events/requests is as follows:
 		- adapters sends InitializedEvent (at any time)
 		- frontend sends zero or more SetBreakpointsRequest
-		- frontend sends one SetExceptionBreakpointsRequest (in the future 'zero or one')
+		- frontend sends one SetFunctionBreakpointsRequest
+		- frontend sends a SetExceptionBreakpointsRequest if one or more exceptionBreakpointFilters have been defined (or if supportsConfigurationDoneRequest is not defined or false)
 		- frontend sends other configuration requests that are added in the future
 		- frontend sends one ConfigurationDoneRequest
 	*/
@@ -61,8 +62,8 @@ declare module DebugProtocol {
 	}
 
 	/** Event message for "stopped" event type.
-		The event indicates that the execution of the debugee has stopped due to a break condition.
-		This can be caused by by a break point previously set, a stepping action has completed or by executing a debugger statement.
+		The event indicates that the execution of the debuggee has stopped due to a break condition.
+		This can be caused by a break point previously set, a stepping action has completed or by executing a debugger statement.
 	*/
 	export interface StoppedEvent extends Event {
 		body: {
@@ -72,11 +73,16 @@ declare module DebugProtocol {
 			threadId?: number;
 			/** Additional information. E.g. if reason is 'exception', text contains the exception name. */
 			text?: string;
+			/** If allThreadsStopped is true, a debug adapter can announce that all threads have stopped.
+			 *  The client should use this information to enable that all threads can be expanded to access their stacktraces.
+			 *  If the attribute is missing or false, only the thread with the given threadId can be expanded.
+			 **/
+			allThreadsStopped?: boolean;
 		};
 	}
 
 	/** Event message for "exited" event type.
-		The event indicates that the debugee has exited.
+		The event indicates that the debuggee has exited.
 	*/
 	export interface ExitedEvent extends Event {
 		body: {
@@ -89,6 +95,10 @@ declare module DebugProtocol {
 		The event indicates that debugging of the debuggee has terminated.
 	*/
 	export interface TerminatedEvent extends Event {
+		body?: {
+			/** A debug adapter may set 'restart' to true to request that the front end restarts the session. */
+			restart?: boolean;
+		}
 	}
 
 	/** Event message for "thread" event type.
@@ -115,6 +125,18 @@ declare module DebugProtocol {
 			/** Optional data to report. For the 'telemetry' category the data will be sent to telemetry, for the other categories the data is shown in JSON format. */
 			data?: any;
 		};
+	}
+
+	/** Event message for "breakpoint" event type.
+		The event indicates that some information about a breakpoint has changed.
+	*/
+	export interface BreakpointEvent extends Event {
+		body: {
+			/** The reason for the event (such as: 'changed', 'new'). */
+			reason: string;
+			/** The breakpoint. */
+			breakpoint: Breakpoint;
+		}
 	}
 
 	//---- Requests
@@ -144,14 +166,10 @@ declare module DebugProtocol {
 		/** Determines in what format paths are specified. Possible values are 'path' or 'uri'. The default is 'path', which is the native format. */
 		pathFormat?: string;
 	}
-	/** Response to Initialize request.
-	 *  It contains information about the features implemented by a debug adapter.
-	*/
+	/** Response to Initialize request. */
 	export interface InitializeResponse extends Response {
-		/** The debug adapter supports the configurationDoneRequest. */
-		supportsConfigurationDoneRequest?: boolean;
-		/** The debug adapter supports a (side effect free) evaluate request for data hovers. */
-		supportEvaluateForHovers?: boolean;
+		/** The capabilities of this debug adapter */
+		body?: Capabilites;
 	}
 
 	/** ConfigurationDone request; value of command field is "configurationDone".
@@ -226,10 +244,35 @@ declare module DebugProtocol {
 	/** Response to "setBreakpoints" request.
 		Returned is information about each breakpoint created by this request.
 		This includes the actual code location and whether the breakpoint could be verified.
+		The breakpoints returned are in the same order as the elements of the 'breakpoints'
+		(or the deprecated 'lines') in the SetBreakpointsArguments.
 	*/
 	export interface SetBreakpointsResponse extends Response {
 		body: {
-			/** Information about the breakpoints. The array elements correspond to the elements of the 'lines' array. */
+			/** Information about the breakpoints. The array elements are in the same order as the elements of the 'breakpoints' (or the deprecated 'lines') in the SetBreakpointsArguments. */
+			breakpoints: Breakpoint[];
+		};
+	}
+
+	/** SetFunctionBreakpoints request; value of command field is "setFunctionBreakpoints".
+		Sets multiple function breakpoints and clears all previous function breakpoints.
+		To clear all function breakpoint, specify an empty array.
+		When a function breakpoint is hit, a StoppedEvent (event type 'function breakpoint') is generated.
+	*/
+	export interface SetFunctionBreakpointsRequest extends Request {
+		arguments: SetFunctionBreakpointsArguments;
+	}
+	/** Arguments for "setFunctionBreakpoints" request. */
+	export interface SetFunctionBreakpointsArguments {
+		/** The function names of the breakpoints. */
+		breakpoints: FunctionBreakpoint[];
+	}
+	/** Response to "setFunctionBreakpoints" request.
+		Returned is information about each breakpoint created by this request.
+	*/
+	export interface SetFunctionBreakpointsResponse extends Response {
+		body: {
+			/** Information about the breakpoints. The array elements correspond to the elements of the 'breakpoints' array. */
 			breakpoints: Breakpoint[];
 		};
 	}
@@ -448,6 +491,30 @@ declare module DebugProtocol {
 
 	//---- Types
 
+	/** Information about the capabilities of a debug adapter. */
+	export interface Capabilites {
+		/** The debug adapter supports the configurationDoneRequest. */
+		supportsConfigurationDoneRequest?: boolean;
+		/** The debug adapter supports functionBreakpoints. */
+		supportsFunctionBreakpoints?: boolean;
+		/** The debug adapter supports conditionalBreakpoints. */
+		supportsConditionalBreakpoints?: boolean;
+		/** The debug adapter supports a (side effect free) evaluate request for data hovers. */
+		supportsEvaluateForHovers?: boolean;
+
+		/** Available filters for the setExceptionBreakpoints request. */
+		exceptionBreakpointFilters?: [
+			{
+				/** The internal ID of the filter. This value is passed to the setExceptionBreakpoints request. */
+				filter: string,
+				/** The name of the filter. This will be shown in the UI. */
+				label: string,
+				/** Initial value of the filter. If not specified a value 'false' is assumed. */
+				default?: boolean
+			}
+		]
+	}
+
 	/** A structured message object. Used to return errors from requests. */
 	export interface Message {
 		/** Unique identifier for the message. */
@@ -461,6 +528,10 @@ declare module DebugProtocol {
 		sendTelemetry?: boolean;
 		/** if true show user */
 		showUser?: boolean;
+		/** An optional url where additional information about this message can be found. */
+		url?: string;
+		/** An optional label that is presented to the user as the UI for opening the url. */
+		urlLabel?: string;
 	}
 
 	/** A Thread */
@@ -532,13 +603,28 @@ declare module DebugProtocol {
 		condition?: string;
 	}
 
-	/** Information about a Breakpoint created in the setBreakpoints request.
+	/** Properties of a breakpoint passed to the setFunctionBreakpoints request.
+	*/
+	export interface FunctionBreakpoint {
+		/** The name of the function. */
+		name: string;
+		/** An optional expression for conditional breakpoints. */
+		condition?: string;
+	}
+
+	/** Information about a Breakpoint created in setBreakpoints or setFunctionBreakpoints.
 	*/
 	export interface Breakpoint {
-		/** If true breakpoint could be set (but not necessarily at the correct location). */
+		/** An optional unique identifier for the breakpoint. */
+		id?: number;
+		/** If true breakpoint could be set (but not necessarily at the desired location).  */
 		verified: boolean;
+		/** An optional message about the state of the breakpoint. This is shown to the user and can be used to explain why a breakpoint could not be verified. */
+		message?: string;
+		/** The source where the breakpoint is located. */
+		source?: Source;
 		/** The actual line of the breakpoint. */
-		line: number;
+		line?: number;
 		/** The actual column of the breakpoint. */
 		column?: number;
 	}

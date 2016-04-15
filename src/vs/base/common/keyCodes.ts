@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-"use strict";
+'use strict';
 
 import * as nls from 'vs/nls';
 import * as defaultPlatform from 'vs/base/common/platform';
@@ -526,6 +526,13 @@ export class Keybinding {
 	}
 
 	/**
+	 * Format the binding to a format appropiate for placing in an aria-label.
+	 */
+	private static _toUSAriaLabel(value:number, Platform:ISimplifiedPlatform): string {
+		return _asString(value, AriaKeyLabelProvider.INSTANCE, Platform);
+	}
+
+	/**
 	 * Format the binding to a format appropiate for rendering in the UI
 	 */
 	private static _toUSHTMLLabel(value:number, Platform:ISimplifiedPlatform): IHTMLContentElement[] {
@@ -561,10 +568,10 @@ export class Keybinding {
 	private static _cachedKeybindingRegex: string = null;
 	public static getUserSettingsKeybindingRegex(): string {
 		if (!this._cachedKeybindingRegex) {
-			let numpadKey = "numpad(0|1|2|3|4|5|6|7|8|9|_multiply|_add|_subtract|_decimal|_divide|_separator)";
-			let oemKey = "`|\\-|=|\\[|\\]|\\\\\\\\|;|'|,|\\.|\\/|oem_8|oem_102";
-			let specialKey = "left|up|right|down|pageup|pagedown|end|home|tab|enter|escape|space|backspace|delete|pausebreak|capslock|insert|contextmenu|numlock|scrolllock";
-			let casualKey = "[a-z]|[0-9]|f(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19)";
+			let numpadKey = 'numpad(0|1|2|3|4|5|6|7|8|9|_multiply|_add|_subtract|_decimal|_divide|_separator)';
+			let oemKey = '`|\\-|=|\\[|\\]|\\\\\\\\|;|\'|,|\\.|\\/|oem_8|oem_102';
+			let specialKey = 'left|up|right|down|pageup|pagedown|end|home|tab|enter|escape|space|backspace|delete|pausebreak|capslock|insert|contextmenu|numlock|scrolllock';
+			let casualKey = '[a-z]|[0-9]|f(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19)';
 			let key = '((' + [numpadKey, oemKey, specialKey, casualKey].join(')|(') + '))';
 			let mod = '((ctrl|shift|alt|cmd|win|meta)\\+)*';
 			let keybinding = '(' + mod + key + ')';
@@ -708,6 +715,13 @@ export class Keybinding {
 	}
 
 	/**
+	 * Format the binding to a format appropiate for placing in an aria-label.
+	 */
+	public _toUSAriaLabel(Platform:ISimplifiedPlatform = defaultPlatform): string {
+		return Keybinding._toUSAriaLabel(this.value, Platform);
+	}
+
+	/**
 	 * Format the binding to a format appropiate for rendering in the UI
 	 */
 	public _toUSHTMLLabel(Platform:ISimplifiedPlatform = defaultPlatform): IHTMLContentElement[] {
@@ -814,6 +828,24 @@ export class MacUIKeyLabelProvider implements IKeyBindingLabelProvider {
 				return MacUIKeyLabelProvider.downArrowUnicodeLabel;
 		}
 
+		return KeyCode.toString(keyCode);
+	}
+}
+
+/**
+ * Aria label provider for Mac.
+ */
+export class AriaKeyLabelProvider implements IKeyBindingLabelProvider {
+	public static INSTANCE = new MacUIKeyLabelProvider();
+
+	public ctrlKeyLabel = nls.localize('ctrlKey.long', "Control");
+	public shiftKeyLabel = nls.localize('shiftKey.long', "Shift");
+	public altKeyLabel = nls.localize('altKey.long', "Alt");
+	public cmdKeyLabel = nls.localize('cmdKey.long', "Command");
+	public windowsKeyLabel = nls.localize('windowsKey.long', "Windows");
+	public modifierSeparator = '+';
+
+	public getLabelForKey(keyCode:KeyCode): string {
 		return KeyCode.toString(keyCode);
 	}
 }
@@ -973,7 +1005,5 @@ function _asHTML(keybinding:number, labelProvider:IKeyBindingLabelProvider, Plat
 		tagName: 'span',
 		className: 'monaco-kb',
 		children: result
-	}]
-
-	return result;
+	}];
 }

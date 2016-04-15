@@ -5,7 +5,7 @@
 
 'use strict';
 
-import {Promise, TPromise} from 'vs/base/common/winjs.base';
+import {TPromise} from 'vs/base/common/winjs.base';
 import timer = require('vs/base/common/timer');
 import paths = require('vs/base/common/paths');
 import {Action} from 'vs/base/common/actions';
@@ -16,7 +16,6 @@ import {IMessageService, Severity} from 'vs/platform/message/common/message';
 import {IWindowConfiguration} from 'vs/workbench/electron-browser/window';
 import {IWorkspaceContextService} from 'vs/platform/workspace/common/workspace';
 import {IQuickOpenService} from 'vs/workbench/services/quickopen/common/quickOpenService';
-import {INullService} from 'vs/platform/instantiation/common/instantiation';
 import {IConfigurationService} from 'vs/platform/configuration/common/configuration';
 
 import {ipcRenderer as ipc, webFrame, remote} from 'electron';
@@ -35,7 +34,7 @@ export class CloseEditorAction extends Action {
 		super(id, label);
 	}
 
-	public run(): Promise {
+	public run(): TPromise<any> {
 		let activeEditor = this.editorService.getActiveEditor();
 		if (activeEditor) {
 			return this.editorService.closeEditor(activeEditor);
@@ -43,7 +42,7 @@ export class CloseEditorAction extends Action {
 
 		this.windowService.getWindow().close();
 
-		return Promise.as(false);
+		return TPromise.as(false);
 	}
 }
 
@@ -56,10 +55,10 @@ export class CloseWindowAction extends Action {
 		super(id, label);
 	}
 
-	public run(): Promise {
+	public run(): TPromise<boolean> {
 		this.windowService.getWindow().close();
 
-		return Promise.as(true);
+		return TPromise.as(true);
 	}
 }
 
@@ -78,14 +77,14 @@ export class CloseFolderAction extends Action {
 		super(id, label);
 	}
 
-	public run(): Promise {
+	public run(): TPromise<boolean> {
 		if (this.contextService.getWorkspace()) {
 			ipc.send('vscode:closeFolder', this.windowService.getWindowId()); // handled from browser process
 		} else {
 			this.messageService.show(Severity.Info, nls.localize('noFolderOpened', "There is currently no folder opened in this instance to close."));
 		}
 
-		return Promise.as(true);
+		return TPromise.as(true);
 	}
 }
 
@@ -102,10 +101,10 @@ export class NewWindowAction extends Action {
 		super(id, label);
 	}
 
-	public run(): Promise {
+	public run(): TPromise<boolean> {
 		this.windowService.getWindow().openNew();
 
-		return Promise.as(true);
+		return TPromise.as(true);
 	}
 }
 
@@ -118,10 +117,10 @@ export class ToggleFullScreenAction extends Action {
 		super(id, label);
 	}
 
-	public run(): Promise {
+	public run(): TPromise<boolean> {
 		ipc.send('vscode:toggleFullScreen', this.windowService.getWindowId());
 
-		return Promise.as(true);
+		return TPromise.as(true);
 	}
 }
 
@@ -134,10 +133,10 @@ export class ToggleMenuBarAction extends Action {
 		super(id, label);
 	}
 
-	public run(): Promise {
+	public run(): TPromise<boolean> {
 		ipc.send('vscode:toggleMenuBar', this.windowService.getWindowId());
 
-		return Promise.as(true);
+		return TPromise.as(true);
 	}
 }
 
@@ -146,14 +145,14 @@ export class ToggleDevToolsAction extends Action {
 	public static ID = 'workbench.action.toggleDevTools';
 	public static LABEL = nls.localize('toggleDevTools', "Toggle Developer Tools");
 
-	constructor(id: string, label: string, @INullService ns) {
+	constructor(id: string, label: string, @IWindowService private windowService: IWindowService) {
 		super(id, label);
 	}
 
-	public run(): Promise {
-		remote.getCurrentWindow().webContents.toggleDevTools();
+	public run(): TPromise<boolean> {
+		ipc.send('vscode:toggleDevTools', this.windowService.getWindowId());
 
-		return Promise.as(true);
+		return TPromise.as(true);
 	}
 }
 
@@ -162,14 +161,14 @@ export class ZoomInAction extends Action {
 	public static ID = 'workbench.action.zoomIn';
 	public static LABEL = nls.localize('zoomIn', "Zoom in");
 
-	constructor(id: string, label: string, @INullService ns) {
+	constructor(id: string, label: string) {
 		super(id, label);
 	}
 
-	public run(): Promise {
+	public run(): TPromise<boolean> {
 		webFrame.setZoomLevel(webFrame.getZoomLevel() + 1);
 
-		return Promise.as(true);
+		return TPromise.as(true);
 	}
 }
 
@@ -183,8 +182,8 @@ export abstract class BaseZoomAction extends Action {
 		super(id, label);
 	}
 
-	public run(): Promise {
-		return Promise.as(false); // Subclass to implement
+	public run(): TPromise<boolean> {
+		return TPromise.as(false); // Subclass to implement
 	}
 
 	protected loadConfiguredZoomLevel(): TPromise<number> {
@@ -211,7 +210,7 @@ export class ZoomOutAction extends BaseZoomAction {
 		super(id, label, configurationService);
 	}
 
-	public run(): Promise {
+	public run(): TPromise<boolean> {
 		return this.loadConfiguredZoomLevel().then(level => {
 			let newZoomLevelCandiate = webFrame.getZoomLevel() - 1;
 			if (newZoomLevelCandiate < 0 && newZoomLevelCandiate < level) {
@@ -219,6 +218,8 @@ export class ZoomOutAction extends BaseZoomAction {
 			}
 
 			webFrame.setZoomLevel(newZoomLevelCandiate);
+
+			return true;
 		});
 	}
 }
@@ -236,9 +237,11 @@ export class ZoomResetAction extends BaseZoomAction {
 		super(id, label, configurationService);
 	}
 
-	public run(): Promise {
+	public run(): TPromise<boolean> {
 		return this.loadConfiguredZoomLevel().then(level => {
 			webFrame.setZoomLevel(level);
+
+			return true;
 		});
 	}
 }
@@ -313,7 +316,7 @@ export class ShowStartupPerformance extends Action {
 		return result;
 	}
 
-	public run(): Promise {
+	public run(): TPromise<boolean> {
 		let table: any[] = [];
 		table.push(...this._analyzeLoaderTimes());
 
@@ -358,7 +361,7 @@ export class ShowStartupPerformance extends Action {
 			(<any>console).table(table);
 		}, 1000);
 
-		return Promise.as(true);
+		return TPromise.as(true);
 	}
 }
 
@@ -371,10 +374,10 @@ export class ReloadWindowAction extends Action {
 		super(id, label);
 	}
 
-	public run(): Promise {
-		ipc.send('vscode:reloadWindow', this.windowService.getWindowId());
+	public run(): TPromise<boolean> {
+		this.windowService.getWindow().reload();
 
-		return Promise.as(null);
+		return TPromise.as(true);
 	}
 }
 
@@ -392,7 +395,7 @@ export class OpenRecentAction extends Action {
 		super(id, label);
 	}
 
-	public run(): Promise {
+	public run(): TPromise<boolean> {
 		let picks = this.contextService.getConfiguration().env.recentPaths.map(p => {
 			return {
 				label: paths.basename(p),
@@ -411,6 +414,8 @@ export class OpenRecentAction extends Action {
 			if (p) {
 				ipc.send('vscode:windowOpen', [p.path]);
 			}
+
+			return true;
 		});
 	}
 }
@@ -429,7 +434,7 @@ export class CloseMessagesAction extends Action {
 		super(id, label);
 	}
 
-	public run(): Promise {
+	public run(): TPromise<boolean> {
 
 		// Close any Message if visible
 		this.messageService.hideAll();
@@ -440,6 +445,6 @@ export class CloseMessagesAction extends Action {
 			editor.focus();
 		}
 
-		return Promise.as(null);
+		return TPromise.as(true);
 	}
 }

@@ -10,14 +10,13 @@ import fs = require('fs');
 import os = require('os');
 import crypto = require('crypto');
 import assert = require('assert');
-import iconv = require('iconv-lite');
 
 import files = require('vs/platform/files/common/files');
 import strings = require('vs/base/common/strings');
 import arrays = require('vs/base/common/arrays');
 import baseMime = require('vs/base/common/mime');
 import basePaths = require('vs/base/common/paths');
-import {Promise, TPromise} from 'vs/base/common/winjs.base';
+import {TPromise} from 'vs/base/common/winjs.base';
 import types = require('vs/base/common/types');
 import objects = require('vs/base/common/objects');
 import extfs = require('vs/base/node/extfs');
@@ -43,6 +42,7 @@ export interface IFileServiceOptions {
 	tmpDir?: string;
 	errorLogger?: (msg: string) => void;
 	encoding?: string;
+	bom?: string;
 	encodingOverride?: IEncodingOverride[];
 	watcherIgnoredPatterns?: string[];
 	disableWatcher?: boolean;
@@ -70,7 +70,6 @@ export class FileService implements files.IFileService {
 	public serviceId = files.IFileService;
 
 	private static FS_EVENT_DELAY = 50; // aggregate and only emit events when changes have stopped for this duration (in ms)
-	private static MAX_FILE_SIZE = 50 * 1024 * 1024;  // do not try to load larger files than that
 	private static MAX_DEGREE_OF_PARALLEL_FS_OPS = 10; // degree of parallel fs calls that we accept at the same time
 
 	private basePath: string;
@@ -148,17 +147,31 @@ export class FileService implements files.IFileService {
 
 			// Return error early if client only accepts text and this is not text
 			if (options && options.acceptTextOnly && !isText) {
-				return Promise.wrapError(<files.IFileOperationResult>{
+				return TPromise.wrapError(<files.IFileOperationResult>{
 					message: nls.localize('fileBinaryError', "File seems to be binary and cannot be opened as text"),
 					fileOperationResult: files.FileOperationResult.FILE_IS_BINARY
 				});
 			}
 
-			let etag = options && options.etag;
-			let enc = options && options.encoding;
+			let preferredEncoding: string;
+			if (options && options.encoding) {
+				if (detected.encoding === encoding.UTF8 && options.encoding === encoding.UTF8) {
+					preferredEncoding = encoding.UTF8_with_bom; // indicate the file has BOM if we are to resolve with UTF 8
+				} else {
+					preferredEncoding = options.encoding; // give passed in encoding highest priority
+				}
+			} else if (detected.encoding) {
+				if (detected.encoding === encoding.UTF8) {
+					preferredEncoding = encoding.UTF8_with_bom; // if we detected UTF-8, it can only be because of a BOM
+				} else {
+					preferredEncoding = detected.encoding;
+				}
+			} else if (this.options.encoding === encoding.UTF8_with_bom) {
+				preferredEncoding = encoding.UTF8; // if we did not detect UTF 8 BOM before, this can only be UTF 8 then
+			}
 
 			// 2.) get content
-			return this.resolveFileContent(resource, etag, enc /* give user choice precedence */ || detected.encoding).then((content) => {
+			return this.resolveFileContent(resource, options && options.etag, preferredEncoding).then((content) => {
 
 				// set our knowledge about the mime on the content obj
 				content.mime = detected.mimes.join(', ');
@@ -169,7 +182,7 @@ export class FileService implements files.IFileService {
 
 			// bubble up existing file operation results
 			if (!types.isUndefinedOrNull((<files.IFileOperationResult>error).fileOperationResult)) {
-				return Promise.wrapError(error);
+				return TPromise.wrapError(error);
 			}
 
 			// on error check if the file does not exist or is a folder and return with proper error result
@@ -177,7 +190,7 @@ export class FileService implements files.IFileService {
 
 				// Return if file not found
 				if (!exists) {
-					return Promise.wrapError(<files.IFileOperationResult>{
+					return TPromise.wrapError(<files.IFileOperationResult>{
 						message: nls.localize('fileNotFoundError', "File not found ({0})", absolutePath),
 						fileOperationResult: files.FileOperationResult.FILE_NOT_FOUND
 					});
@@ -186,14 +199,14 @@ export class FileService implements files.IFileService {
 				// Otherwise check for file being a folder?
 				return pfs.stat(absolutePath).then((stat) => {
 					if (stat.isDirectory()) {
-						return Promise.wrapError(<files.IFileOperationResult>{
+						return TPromise.wrapError(<files.IFileOperationResult>{
 							message: nls.localize('fileIsDirectoryError', "File is directory ({0})", absolutePath),
 							fileOperationResult: files.FileOperationResult.FILE_IS_DIRECTORY
 						});
 					}
 
 					// otherwise just give up
-					return Promise.wrapError(error);
+					return TPromise.wrapError(error);
 				});
 			});
 		});
@@ -204,7 +217,7 @@ export class FileService implements files.IFileService {
 
 		let contentPromises = <TPromise<files.IContent>[]>[];
 		resources.forEach((resource) => {
-			contentPromises.push(limiter.queue(() => this.resolveFileContent(resource).then((content) => content, (error) => Promise.as(null /* ignore errors gracefully */))));
+			contentPromises.push(limiter.queue(() => this.resolveFileContent(resource).then((content) => content, (error) => TPromise.as(null /* ignore errors gracefully */))));
 		});
 
 		return TPromise.join(contentPromises).then((contents) => {
@@ -217,40 +230,44 @@ export class FileService implements files.IFileService {
 
 		// 1.) check file
 		return this.checkFile(absolutePath, options).then((exists) => {
-			let createParentsPromise: Promise;
+			let createParentsPromise: TPromise<boolean>;
 			if (exists) {
-				createParentsPromise = Promise.as(null);
+				createParentsPromise = TPromise.as(null);
 			} else {
 				createParentsPromise = pfs.mkdirp(paths.dirname(absolutePath));
 			}
 
 			// 2.) create parents as needed
 			return createParentsPromise.then(() => {
-				let encodingToWrite = this.getEncoding(resource, options.charset);
-
-				// UTF16 without BOM makes no sense so always add it
+				let encodingToWrite = this.getEncoding(resource, options.encoding);
 				let addBomPromise: TPromise<boolean> = TPromise.as(false);
-				if (encodingToWrite === encoding.UTF16be || encodingToWrite === encoding.UTF16le) {
+
+				// UTF_16 BE and LE as well as UTF_8 with BOM always have a BOM
+				if (encodingToWrite === encoding.UTF16be || encodingToWrite === encoding.UTF16le || encodingToWrite === encoding.UTF8_with_bom) {
 					addBomPromise = TPromise.as(true);
 				}
 
-				// UTF8 only gets a BOM if the file had it alredy
+				// Existing UTF-8 file: check for options regarding BOM
 				else if (exists && encodingToWrite === encoding.UTF8) {
-					addBomPromise = nfcall(encoding.detectEncodingByBOM, absolutePath).then((enc) => enc === encoding.UTF8); // only for UTF8 we need to check if we have to preserve a BOM
+					if (options.overwriteEncoding) {
+						addBomPromise = TPromise.as(false); // if we are to overwrite the encoding, we do not preserve it if found
+					} else {
+						addBomPromise = nfcall(encoding.detectEncodingByBOM, absolutePath).then((enc) => enc === encoding.UTF8); // otherwise preserve it if found
+					}
 				}
 
 				// 3.) check to add UTF BOM
 				return addBomPromise.then((addBom) => {
-					let writeFilePromise: Promise;
+					let writeFilePromise: TPromise<void>;
 
 					// Write fast if we do UTF 8 without BOM
 					if (!addBom && encodingToWrite === encoding.UTF8) {
 						writeFilePromise = pfs.writeFile(absolutePath, value, encoding.UTF8);
 					}
 
-					// Otherwise use Iconv-Lite for encoding
+					// Otherwise use encoding lib
 					else {
-						let encoded = iconv.encode(value, encodingToWrite, { addBOM: addBom });
+						let encoded = encoding.encode(value, encodingToWrite, { addBOM: addBom });
 						writeFilePromise = pfs.writeFile(absolutePath, encoded);
 					}
 
@@ -314,16 +331,16 @@ export class FileService implements files.IFileService {
 
 			// Return early with conflict if target exists and we are not told to overwrite
 			if (exists && !isCaseRename && !overwrite) {
-				return Promise.wrapError(<files.IFileOperationResult>{
+				return TPromise.wrapError(<files.IFileOperationResult>{
 					fileOperationResult: files.FileOperationResult.FILE_MOVE_CONFLICT
 				});
 			}
 
 			// 2.) make sure target is deleted before we move/copy unless this is a case rename of the same file
-			let deleteTargetPromise = Promise.as(null);
+			let deleteTargetPromise = TPromise.as(null);
 			if (exists && !isCaseRename) {
 				if (basePaths.isEqualOrParent(sourcePath, targetPath)) {
-					return Promise.wrapError(nls.localize('unableToMoveCopyError', "Unable to move/copy. File would replace folder it is contained in.")); // catch this corner case!
+					return TPromise.wrapError(nls.localize('unableToMoveCopyError', "Unable to move/copy. File would replace folder it is contained in.")); // catch this corner case!
 				}
 
 				deleteTargetPromise = this.del(uri.file(targetPath));
@@ -352,7 +369,7 @@ export class FileService implements files.IFileService {
 		// 1.) resolve
 		return pfs.stat(sourcePath).then((stat) => {
 			if (stat.isDirectory()) {
-				return Promise.wrapError(nls.localize('foldersCopyError', "Folders cannot be copied into the workspace. Please select individual files to copy them.")); // for now we do not allow to import a folder into a workspace
+				return TPromise.wrapError(nls.localize('foldersCopyError', "Folders cannot be copied into the workspace. Please select individual files to copy them.")); // for now we do not allow to import a folder into a workspace
 			}
 
 			// 2.) copy
@@ -364,7 +381,7 @@ export class FileService implements files.IFileService {
 		});
 	}
 
-	public del(resource: uri): Promise {
+	public del(resource: uri): TPromise<void> {
 		let absolutePath = this.toAbsolutePath(resource);
 
 		return nfcall(extfs.del, absolutePath, this.tmpPath);
@@ -374,7 +391,7 @@ export class FileService implements files.IFileService {
 
 	private toAbsolutePath(arg1: uri | files.IFileStat): string {
 		let resource: uri;
-		if (uri.isURI(arg1)) {
+		if (arg1 instanceof uri) {
 			resource = <uri>arg1;
 		} else {
 			resource = (<files.IFileStat>arg1).resource;
@@ -394,7 +411,7 @@ export class FileService implements files.IFileService {
 		let absolutePath = this.toAbsolutePath(resource);
 
 		return pfs.stat(absolutePath).then((stat: fs.Stats) => {
-			return new StatResolver(resource, stat.isDirectory(), stat.mtime.getTime(), stat.size);
+			return new StatResolver(resource, stat.isDirectory(), stat.mtime.getTime(), stat.size, this.options.verboseLogging);
 		});
 	}
 
@@ -406,25 +423,25 @@ export class FileService implements files.IFileService {
 
 			// Return early if file not modified since
 			if (etag && etag === model.etag) {
-				return Promise.wrapError(<files.IFileOperationResult>{
+				return TPromise.wrapError(<files.IFileOperationResult>{
 					fileOperationResult: files.FileOperationResult.FILE_NOT_MODIFIED_SINCE
 				});
 			}
 
 			// Return early if file is too large to load
-			if (types.isNumber(model.size) && model.size > FileService.MAX_FILE_SIZE) {
-				return Promise.wrapError(<files.IFileOperationResult>{
+			if (types.isNumber(model.size) && model.size > files.MAX_FILE_SIZE) {
+				return TPromise.wrapError(<files.IFileOperationResult>{
 					fileOperationResult: files.FileOperationResult.FILE_TOO_LARGE
 				});
 			}
 
 			// 2.) read contents
-			return new Promise((c, e) => {
+			return new TPromise<files.IContent>((c, e) => {
 				let done = false;
 				let chunks: NodeBuffer[] = [];
 				let fileEncoding = this.getEncoding(model.resource, enc);
 
-				const reader = fs.createReadStream(absolutePath).pipe(iconv.decodeStream(fileEncoding)); // decode takes care of stripping any BOMs from the file content
+				const reader = fs.createReadStream(absolutePath).pipe(encoding.decodeStream(fileEncoding)); // decode takes care of stripping any BOMs from the file content
 
 				reader.on('data', (buf) => {
 					chunks.push(buf);
@@ -440,7 +457,7 @@ export class FileService implements files.IFileService {
 				reader.on('end', () => {
 					let content: files.IContent = <any>model;
 					content.value = chunks.join('');
-					content.charset = fileEncoding; // make sure to store the charset in the model to restore it later when writing
+					content.encoding = fileEncoding; // make sure to store the encoding in the model to restore it later when writing
 
 					if (!done) {
 						done = true;
@@ -451,19 +468,19 @@ export class FileService implements files.IFileService {
 		});
 	}
 
-	private getEncoding(resource: uri, candidate?: string): string {
+	private getEncoding(resource: uri, preferredEncoding?: string): string {
 		let fileEncoding: string;
 
 		let override = this.getEncodingOverride(resource);
 		if (override) {
 			fileEncoding = override;
-		} else if (candidate) {
-			fileEncoding = candidate;
-		} else if (this.options) {
+		} else if (preferredEncoding) {
+			fileEncoding = preferredEncoding;
+		} else {
 			fileEncoding = this.options.encoding;
 		}
 
-		if (!fileEncoding || !iconv.encodingExists(fileEncoding)) {
+		if (!fileEncoding || !encoding.encodingExists(fileEncoding)) {
 			fileEncoding = encoding.UTF8; // the default is UTF 8
 		}
 
@@ -491,7 +508,7 @@ export class FileService implements files.IFileService {
 			if (exists) {
 				return pfs.stat(absolutePath).then((stat: fs.Stats) => {
 					if (stat.isDirectory()) {
-						return Promise.wrapError(new Error('Expected file is actually a directory'));
+						return TPromise.wrapError(new Error('Expected file is actually a directory'));
 					}
 
 					// Dirty write prevention
@@ -499,7 +516,7 @@ export class FileService implements files.IFileService {
 
 						// Find out if content length has changed
 						if (options.etag !== etag(stat.size, options.mtime)) {
-							return Promise.wrapError(<files.IFileOperationResult>{
+							return TPromise.wrapError(<files.IFileOperationResult>{
 								message: 'File Modified Since',
 								fileOperationResult: files.FileOperationResult.FILE_MODIFIED_SINCE
 							});
@@ -511,7 +528,7 @@ export class FileService implements files.IFileService {
 
 					// Throw if file is readonly and we are not instructed to overwrite
 					if (readonly && !options.overwriteReadonly) {
-						return Promise.wrapError(<files.IFileOperationResult>{
+						return TPromise.wrapError(<files.IFileOperationResult>{
 							message: nls.localize('fileReadOnlyError', "File is Read Only"),
 							fileOperationResult: files.FileOperationResult.FILE_READ_ONLY
 						});
@@ -570,7 +587,7 @@ export class FileService implements files.IFileService {
 					// Emit
 					this.eventEmitter.emit(files.EventType.FILE_CHANGES, toFileChangesEvent(normalizedEvents));
 
-					return Promise.as(null);
+					return TPromise.as(null);
 				});
 			});
 		}
@@ -610,8 +627,9 @@ export class StatResolver {
 	private mime: string;
 	private etag: string;
 	private size: number;
+	private verboseLogging: boolean;
 
-	constructor(resource: uri, isDirectory: boolean, mtime: number, size: number) {
+	constructor(resource: uri, isDirectory: boolean, mtime: number, size: number, verboseLogging: boolean) {
 		assert.ok(resource && resource.scheme === 'file', 'Invalid resource: ' + resource);
 
 		this.resource = resource;
@@ -621,6 +639,8 @@ export class StatResolver {
 		this.mime = !this.isDirectory ? baseMime.guessMimeTypes(resource.fsPath).join(', ') : null;
 		this.etag = etag(size, mtime);
 		this.size = size;
+
+		this.verboseLogging = verboseLogging;
 	}
 
 	public resolve(options: files.IResolveFileOptions): TPromise<files.IFileStat> {
@@ -671,7 +691,9 @@ export class StatResolver {
 	private resolveChildren(absolutePath: string, absoluteTargetPaths: string[], resolveSingleChildDescendants: boolean, callback: (children: files.IFileStat[]) => void): void {
 		extfs.readdir(absolutePath, (error: Error, files: string[]) => {
 			if (error) {
-				console.error(error);
+				if (this.verboseLogging) {
+					console.error(error);
+				}
 
 				return callback(null); // return - we might not have permissions to read the folder
 			}
@@ -684,7 +706,9 @@ export class StatResolver {
 
 				flow.sequence(
 					function onError(error: Error): void {
-						console.error(error);
+						if ($this.verboseLogging) {
+							console.error(error);
+						}
 
 						clb(null, null); // return - we might not have permissions to read the folder or stat the file
 					},

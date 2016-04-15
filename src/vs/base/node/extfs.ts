@@ -16,7 +16,6 @@ import paths = require('path');
 
 const loop = flow.loop;
 
-const normalizedCache = Object.create(null);
 export function readdir(path: string, callback: (error: Error, files: string[]) => void): void {
 
 	// Mac: uses NFD unicode form on disk, but we want NFC
@@ -27,12 +26,12 @@ export function readdir(path: string, callback: (error: Error, files: string[]) 
 				return callback(error, null);
 			}
 
-			return callback(null, children.map(c => strings.normalizeNFC(c, normalizedCache)));
+			return callback(null, children.map(c => strings.normalizeNFC(c)));
 		});
 	}
 
 	return readdirNormalize(path, callback);
-};
+}
 
 function readdirNormalize(path: string, callback: (error: Error, files: string[]) => void): void {
 	fs.readdir(path, (error, children) => {

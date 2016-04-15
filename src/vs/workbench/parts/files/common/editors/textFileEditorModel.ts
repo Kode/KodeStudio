@@ -5,7 +5,7 @@
 'use strict';
 
 import nls = require('vs/nls');
-import {TPromise, Promise} from 'vs/base/common/winjs.base';
+import {TPromise} from 'vs/base/common/winjs.base';
 import {onUnexpectedError, toErrorMessage} from 'vs/base/common/errors';
 import URI from 'vs/base/common/uri';
 import {IDisposable} from 'vs/base/common/lifecycle';
@@ -72,7 +72,6 @@ export class TextFileEditorModel extends BaseTextEditorModel implements IEncodin
 
 	public static ID = 'workbench.editors.files.textFileEditorModel';
 
-	private static DEFAULT_AUTO_SAVE_DELAY = 1000;
 	private static saveErrorHandler: ISaveErrorHandler;
 
 	private resource: URI;
@@ -132,7 +131,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements IEncodin
 
 	private updateAutoSaveConfiguration(config: IAutoSaveConfiguration): void {
 		if (typeof config.autoSaveDelay === 'number' && config.autoSaveDelay > 0) {
-			this.autoSaveAfterMillies = config.autoSaveDelay * 1000;
+			this.autoSaveAfterMillies = config.autoSaveDelay;
 			this.autoSaveAfterMilliesEnabled = true;
 		} else {
 			this.autoSaveAfterMillies = void 0;
@@ -198,7 +197,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements IEncodin
 				undo();
 			}
 
-			return Promise.wrapError(error);
+			return TPromise.wrapError(error);
 		});
 	}
 
@@ -242,9 +241,9 @@ export class TextFileEditorModel extends BaseTextEditorModel implements IEncodin
 			};
 			this.updateVersionOnDiskStat(resolvedStat);
 
-			// Keep the original charset to not loose it when saving
+			// Keep the original encoding to not loose it when saving
 			let oldEncoding = this.contentEncoding;
-			this.contentEncoding = content.charset;
+			this.contentEncoding = content.encoding;
 
 			// Handle events if encoding changed
 			if (this.preferredEncoding) {
@@ -290,7 +289,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements IEncodin
 				}, (error) => {
 					this.createTextEditorModelPromise = null;
 
-					return Promise.wrapError(error);
+					return TPromise.wrapError(error);
 				});
 
 				return this.createTextEditorModelPromise;
@@ -305,7 +304,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements IEncodin
 			}
 
 			// Otherwise bubble up the error
-			return Promise.wrapError(error);
+			return TPromise.wrapError(error);
 		});
 	}
 
@@ -377,7 +376,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements IEncodin
 		this.cancelAutoSavePromises();
 
 		// Create new save promise and keep it
-		let promise: TPromise<void> = Promise.timeout(this.autoSaveAfterMillies).then(() => {
+		let promise: TPromise<void> = TPromise.timeout(this.autoSaveAfterMillies).then(() => {
 
 			// Only trigger save if the version id has not changed meanwhile
 			if (versionId === this.versionId) {
@@ -399,7 +398,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements IEncodin
 	/**
 	 * Saves the current versionId of this editor model if it is dirty.
 	 */
-	public save(overwriteReadonly?: boolean): TPromise<void> {
+	public save(overwriteReadonly?: boolean, overwriteEncoding?: boolean): TPromise<void> {
 		if (!this.isResolved()) {
 			return TPromise.as<void>(null);
 		}
@@ -409,10 +408,10 @@ export class TextFileEditorModel extends BaseTextEditorModel implements IEncodin
 		// Cancel any currently running auto saves to make this the one that succeeds
 		this.cancelAutoSavePromises();
 
-		return this.doSave(this.versionId, false, overwriteReadonly);
+		return this.doSave(this.versionId, false, overwriteReadonly, overwriteEncoding);
 	}
 
-	private doSave(versionId: number, isAutoSave: boolean, overwriteReadonly?: boolean): TPromise<void> {
+	private doSave(versionId: number, isAutoSave: boolean, overwriteReadonly?: boolean, overwriteEncoding?: boolean): TPromise<void> {
 		diag('doSave(' + versionId + ') - enter with versionId ' + versionId, this.resource, new Date());
 
 		// Lookup any running pending save for this versionId and return it if found
@@ -468,8 +467,9 @@ export class TextFileEditorModel extends BaseTextEditorModel implements IEncodin
 		diag('doSave(' + versionId + ') - before updateContent()', this.resource, new Date());
 		this.mapPendingSaveToVersionId[versionId] = this.fileService.updateContent(this.versionOnDiskStat.resource, this.getValue(), {
 			overwriteReadonly: overwriteReadonly,
+			overwriteEncoding: overwriteEncoding,
 			mtime: this.versionOnDiskStat.mtime,
-			charset: this.getEncoding(),
+			encoding: this.getEncoding(),
 			etag: this.versionOnDiskStat.etag
 		}).then((stat: IFileStat) => {
 			diag('doSave(' + versionId + ') - after updateContent()', this.resource, new Date());
@@ -655,7 +655,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements IEncodin
 			}
 
 			if (!this.inConflictResolutionMode) {
-				this.save().done(null, onUnexpectedError);
+				this.save(false, true /* overwriteEncoding due to forced encoding change */).done(null, onUnexpectedError);
 			}
 		}
 
@@ -749,7 +749,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements IEncodin
 			isDirectory: stat.isDirectory,
 			hasChildren: stat.hasChildren,
 			children: stat.children
-		}
+		};
 	}
 }
 

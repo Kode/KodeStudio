@@ -19,7 +19,7 @@ import ServiceIdentifier = instantiation.ServiceIdentifier;
 /**
  * Creates a new instance of an instantiation service.
  */
-export function create(services: any = Object.create(null)): IInstantiationService {
+export function createInstantiationService(services: any = Object.create(null)): IInstantiationService {
 	let result = new InstantiationService(services, new AccessLock());
 	return result;
 }
@@ -154,7 +154,7 @@ class ServicesMap {
 					let value = instantiation._util.getServiceId(id);
 					return <T>this[value];
 				}
-			}
+			};
 
 			return fn.apply(undefined, [accessor].concat(args));
 		});
@@ -162,52 +162,44 @@ class ServicesMap {
 
 	public createInstance<T>(descriptor: descriptors.SyncDescriptor<T>, args: any[]): T {
 		let allArguments: any[] = [];
-		let serviceInjections = instantiation._util.getServiceDependencies(descriptor.ctor);
-		if (Array.isArray(serviceInjections)) {
-			let fixedArguments = descriptor.staticArguments().concat(args);
-			let expectedFirstServiceIndex = fixedArguments.length;
-			let actualFirstServiceIndex = Number.MAX_VALUE;
-			serviceInjections.forEach(si => {
-				// @IServiceName
-				let {serviceId, index} = si;
-				let service = this._lock.runUnlocked(() => this[serviceId]);
-				allArguments[index] = service;
-				actualFirstServiceIndex = Math.min(actualFirstServiceIndex, si.index);
-			});
+		let serviceInjections = instantiation._util.getServiceDependencies(descriptor.ctor) || [];
+		let fixedArguments = descriptor.staticArguments().concat(args);
+		let expectedFirstServiceIndex = fixedArguments.length;
+		let actualFirstServiceIndex = Number.MAX_VALUE;
+		serviceInjections.forEach(si => {
+			// @IServiceName
+			let {serviceId, index} = si;
+			let service = this._lock.runUnlocked(() => this[serviceId]);
+			allArguments[index] = service;
+			actualFirstServiceIndex = Math.min(actualFirstServiceIndex, si.index);
+		});
 
-			// insert the fixed arguments into the array of all ctor
-			// arguments. don't overwrite existing values tho it indicates
-			// something is off
-			let i = 0;
-			for (let arg of fixedArguments) {
-				let hasValue = allArguments[i] !== void 0;
-				if (!hasValue) {
-					allArguments[i] = arg;
-				}
-				i += 1;
+		// insert the fixed arguments into the array of all ctor
+		// arguments. don't overwrite existing values tho it indicates
+		// something is off
+		let i = 0;
+		for (let arg of fixedArguments) {
+			let hasValue = allArguments[i] !== void 0;
+			if (!hasValue) {
+				allArguments[i] = arg;
 			}
+			i += 1;
+		}
 
-			allArguments.unshift(descriptor.ctor); // ctor is first arg
+		allArguments.unshift(descriptor.ctor); // ctor is first arg
 
-			// services are the last arguments of ctor-calls. We check if static ctor arguments
-			// (like those from a [sync|async] desriptor) or args that are passed by createInstance
-			// don't override positions of those arguments
-			if (actualFirstServiceIndex !== Number.MAX_VALUE
-				&& actualFirstServiceIndex !== expectedFirstServiceIndex) {
+		// services are the last arguments of ctor-calls. We check if static ctor arguments
+		// (like those from a [sync|async] desriptor) or args that are passed by createInstance
+		// don't override positions of those arguments
+		if (actualFirstServiceIndex !== Number.MAX_VALUE
+			&& actualFirstServiceIndex !== expectedFirstServiceIndex) {
 
-				let msg = `[createInstance] constructor '${descriptor.ctor.name}' has first` +
-					` service dependency at position ${actualFirstServiceIndex + 1} but is called with` +
-					` ${expectedFirstServiceIndex - 1} static arguments that are expected to come first`;
+			let msg = `[createInstance] constructor '${descriptor.ctor.name}' has first` +
+				` service dependency at position ${actualFirstServiceIndex + 1} but is called with` +
+				` ${expectedFirstServiceIndex - 1} static arguments that are expected to come first`;
 
-				// throw new Error(msg);
-				console.warn(msg);
-			}
-
-		} else {
-			allArguments = [descriptor.ctor, this /*this === ctx*/];
-			allArguments.push.apply(allArguments, descriptor.staticArguments());
-			allArguments.push.apply(allArguments, args);
-			// console.warn('using OLD INJECTION STYLE for ' + descriptor.ctor.name);
+			// throw new Error(msg);
+			console.warn(msg);
 		}
 
 		return this._lock.runUnlocked(() => {
@@ -266,16 +258,6 @@ class InstantiationService implements IInstantiationService {
 	createInstance<A1, A2, A3, A4, A5, A6, A7, T>(ctor: instantiation.IConstructorSignature7<A1, A2, A3, A4, A5, A6, A7, T>, first: A1, second: A2, third: A3, fourth: A4, fifth: A5, sixth: A6, seventh: A7): T;
 	createInstance<A1, A2, A3, A4, A5, A6, A7, A8, T>(ctor: instantiation.IConstructorSignature8<A1, A2, A3, A4, A5, A6, A7, A8, T>, first: A1, second: A2, third: A3, fourth: A4, fifth: A5, sixth: A6, seventh: A7, eigth: A8): T;
 
-	createInstance<T>(ctor: instantiation.INewConstructorSignature0<T>, ...rest: any[]): T;
-	createInstance<A1, T>(ctor: instantiation.INewConstructorSignature1<A1, T>, ...rest: any[]): T;
-	createInstance<A1, A2, T>(ctor: instantiation.INewConstructorSignature2<A1, A2, T>, ...rest: any[]): T;
-	createInstance<A1, A2, A3, T>(ctor: instantiation.INewConstructorSignature3<A1, A2, A3, T>, ...rest: any[]): T;
-	createInstance<A1, A2, A3, A4, T>(ctor: instantiation.INewConstructorSignature4<A1, A2, A3, A4, T>, first: A1, second: A2, third: A3, fourth: A4): T;
-	createInstance<A1, A2, A3, A4, A5, T>(ctor: instantiation.INewConstructorSignature5<A1, A2, A3, A4, A5, T>, first: A1, second: A2, third: A3, fourth: A4, fifth: A5): T;
-	createInstance<A1, A2, A3, A4, A5, A6, T>(ctor: instantiation.INewConstructorSignature6<A1, A2, A3, A4, A5, A6, T>, first: A1, second: A2, third: A3, fourth: A4, fifth: A5, sixth: A6): T;
-	createInstance<A1, A2, A3, A4, A5, A6, A7, T>(ctor: instantiation.INewConstructorSignature7<A1, A2, A3, A4, A5, A6, A7, T>, first: A1, second: A2, third: A3, fourth: A4, fifth: A5, sixth: A6, seventh: A7): T;
-	createInstance<A1, A2, A3, A4, A5, A6, A7, A8, T>(ctor: instantiation.INewConstructorSignature8<A1, A2, A3, A4, A5, A6, A7, A8, T>, first: A1, second: A2, third: A3, fourth: A4, fifth: A5, sixth: A6, seventh: A7, eigth: A8): T;
-
 	createInstance<T>(descriptor: descriptors.SyncDescriptor0<T>): T;
 	createInstance<A1, T>(descriptor: descriptors.SyncDescriptor1<A1, T>, a1: A1): T;
 	createInstance<A1, A2, T>(descriptor: descriptors.SyncDescriptor2<A1, A2, T>, a1: A1, a2: A2): T;
@@ -300,8 +282,8 @@ class InstantiationService implements IInstantiationService {
 
 	createInstance<T>(param: any): any {
 
-		var rest = new Array<any>(arguments.length - 1);
-		for (var i = 1, len = arguments.length; i < len; i++) {
+		let rest = new Array<any>(arguments.length - 1);
+		for (let i = 1, len = arguments.length; i < len; i++) {
 			rest[i - 1] = arguments[i];
 		}
 

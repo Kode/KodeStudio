@@ -16,6 +16,7 @@
 		<string>hh</string>
 		<string>hpp</string>
 		<string>h++</string>
+		<string>H</string>
 	</array>
 	<key>firstLineMatch</key>
 	<string>-\*- C\+\+ -\*-</string>
@@ -85,7 +86,7 @@
 		</dict>
 		<dict>
 			<key>match</key>
-			<string>\b(and|and_eq|bitand|bitor|compl|not|not_eq|or|or_eq|typeid|xor|xor_eq)\b</string>
+			<string>\b(alignof|alignas|and|and_eq|bitand|bitor|compl|not|not_eq|or|or_eq|typeid|xor|xor_eq)\b</string>
 			<key>name</key>
 			<string>keyword.operator.c++</string>
 		</dict>
@@ -97,7 +98,7 @@
 		</dict>
 		<dict>
 			<key>match</key>
-			<string>\b(constexpr|export|mutable|typename|thread_local|noexcept)\b</string>
+			<string>\b(constexpr|export|mutable|typename|thread_local)\b</string>
 			<key>name</key>
 			<string>storage.modifier.c++</string>
 		</dict>
@@ -580,3 +581,4 @@
 	<string>26251B18-6B1D-11D9-AFDB-000D93589AF6</string>
 </dict>
 </plist>
+

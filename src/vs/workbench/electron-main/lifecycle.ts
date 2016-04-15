@@ -65,8 +65,8 @@ export class Lifecycle {
 
 			// Windows/Linux: we quit when all windows have closed
 			// Mac: we only quit when quit was requested
-			// Tests: we always quit
-			if (this.quitRequested || process.platform !== 'darwin') {
+			// --wait: we quit when all windows are closed
+			if (this.quitRequested || process.platform !== 'darwin' || env.cliArgs.waitForWindowClose) {
 				app.quit();
 			}
 		});
@@ -124,8 +124,8 @@ export class Lifecycle {
 				// Any cancellation also cancels a pending quit if present
 				if (this.pendingQuitPromiseComplete) {
 					this.pendingQuitPromiseComplete(true /* veto */);
-					delete this.pendingQuitPromiseComplete;
-					delete this.pendingQuitPromise;
+					this.pendingQuitPromiseComplete = null;
+					this.pendingQuitPromise = null;
 				}
 
 				c(true); // veto
@@ -151,8 +151,8 @@ export class Lifecycle {
 				app.once('will-quit', () => {
 					if (this.pendingQuitPromiseComplete) {
 						this.pendingQuitPromiseComplete(false /* no veto */);
-						delete this.pendingQuitPromiseComplete;
-						delete this.pendingQuitPromise;
+						this.pendingQuitPromiseComplete = null;
+						this.pendingQuitPromise = null;
 					}
 				});
 

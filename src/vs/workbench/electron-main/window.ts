@@ -26,7 +26,7 @@ export interface IWindowState {
 
 export interface IWindowCreationOptions {
 	state: IWindowState;
-	isPluginDevelopmentHost: boolean;
+	extensionDevelopmentPath?: string;
 }
 
 export enum WindowMode {
@@ -35,7 +35,7 @@ export enum WindowMode {
 	Minimized
 }
 
-export const defaultWindowState = function(mode = WindowMode.Normal): IWindowState {
+export const defaultWindowState = function (mode = WindowMode.Normal): IWindowState {
 	return {
 		width: 1024,
 		height: 768,
@@ -91,10 +91,12 @@ export interface IWindowConfiguration extends env.ICommandLineArguments {
 	execPath: string;
 	version: string;
 	appName: string;
+	applicationName: string;
+	darwinBundleIdentifier: string;
 	appSettingsHome: string;
 	appSettingsPath: string;
 	appKeybindingsPath: string;
-	userPluginsHome: string;
+	userExtensionsHome: string;
 	sharedIPCHandle: string;
 	appRoot: string;
 	isBuilt: boolean;
@@ -105,28 +107,30 @@ export interface IWindowConfiguration extends env.ICommandLineArguments {
 	workspacePath?: string;
 	filesToOpen?: IPath[];
 	filesToCreate?: IPath[];
+	filesToDiff?: IPath[];
 	extensionsToInstall: string[];
 	crashReporter: Electron.CrashReporterStartOptions;
 	extensionsGallery: {
 		serviceUrl: string;
+		cacheUrl: string;
 		itemUrl: string;
 	};
+	extensionTips: { [id: string]: string; };
 	welcomePage: string;
 	releaseNotesUrl: string;
+	licenseUrl: string;
 	productDownloadUrl: string;
 	enableTelemetry: boolean;
-	userEnv: env.IProcessEnvironment,
+	userEnv: env.IProcessEnvironment;
 	aiConfig: {
 		key: string;
 		asimovKey: string;
-	},
+	};
 	sendASmile: {
 		reportIssueUrl: string,
 		requestFeatureUrl: string
-	}
+	};
 }
-
-const enableDebugLogging = false;
 
 export class VSCodeWindow {
 
@@ -141,7 +145,7 @@ export class VSCodeWindow {
 	private _win: Electron.BrowserWindow;
 	private _lastFocusTime: number;
 	private _readyState: ReadyState;
-	private _isPluginDevelopmentHost: boolean;
+	private _extensionDevelopmentPath: string;
 	private windowState: IWindowState;
 	private currentWindowMode: WindowMode;
 
@@ -153,7 +157,7 @@ export class VSCodeWindow {
 	constructor(config: IWindowCreationOptions) {
 		this._lastFocusTime = -1;
 		this._readyState = ReadyState.NONE;
-		this._isPluginDevelopmentHost = config.isPluginDevelopmentHost;
+		this._extensionDevelopmentPath = config.extensionDevelopmentPath;
 		this.whenReadyCallbacks = [];
 
 		// Load window state
@@ -178,8 +182,9 @@ export class VSCodeWindow {
 			title: env.product.nameLong
 		};
 
-		if (platform.isLinux && env.product.icons && env.product.icons.application && env.product.icons.application.png) {
-			options.icon = path.join(env.appRoot, env.product.icons.application.png); // Windows and Mac are better off using the embedded icon(s)
+		if (platform.isLinux) {
+			// Windows and Mac are better off using the embedded icon(s)
+			options.icon = path.join(env.appRoot, 'resources/linux/code.png');
 		}
 
 		// Create the browser window.
@@ -206,7 +211,11 @@ export class VSCodeWindow {
 	}
 
 	public get isPluginDevelopmentHost(): boolean {
-		return this._isPluginDevelopmentHost;
+		return !!this._extensionDevelopmentPath;
+	}
+
+	public get extensionDevelopmentPath(): string {
+		return this._extensionDevelopmentPath;
 	}
 
 	public get config(): IWindowConfiguration {
@@ -288,7 +297,7 @@ export class VSCodeWindow {
 			if (this.pendingLoadConfig) {
 				this.currentConfig = this.pendingLoadConfig;
 
-				delete this.pendingLoadConfig;
+				this.pendingLoadConfig = null;
 			}
 
 			// To prevent flashing, we set the window visible after the page has finished to load but before VSCode is loaded
@@ -387,6 +396,7 @@ export class VSCodeWindow {
 		let configuration: IWindowConfiguration = objects.mixin({}, this.currentConfig);
 		delete configuration.filesToOpen;
 		delete configuration.filesToCreate;
+		delete configuration.filesToDiff;
 		delete configuration.extensionsToInstall;
 
 		// Some configuration things get inherited if the window is being reloaded and we are

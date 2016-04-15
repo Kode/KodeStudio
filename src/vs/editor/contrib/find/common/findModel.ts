@@ -4,16 +4,16 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
-import * as EditorCommon from 'vs/editor/common/editorCommon';
-import * as Strings from 'vs/base/common/strings';
-import {ReplaceAllCommand} from './replaceAllCommand';
-import {IDisposable, disposeAll} from 'vs/base/common/lifecycle';
 import {RunOnceScheduler} from 'vs/base/common/async';
-import {Range} from 'vs/editor/common/core/range';
-import {Position} from 'vs/editor/common/core/position';
+import {IDisposable, disposeAll} from 'vs/base/common/lifecycle';
+import * as strings from 'vs/base/common/strings';
 import {ReplaceCommand} from 'vs/editor/common/commands/replaceCommand';
+import {Position} from 'vs/editor/common/core/position';
+import {Range} from 'vs/editor/common/core/range';
+import * as editorCommon from 'vs/editor/common/editorCommon';
 import {FindDecorations} from './findDecorations';
-import {FindReplaceStateChangedEvent, FindReplaceState} from './findState';
+import {FindReplaceState, FindReplaceStateChangedEvent} from './findState';
+import {ReplaceAllCommand} from './replaceAllCommand';
 
 export const FIND_IDS = {
 	StartFindAction: 'actions.find',
@@ -27,14 +27,16 @@ export const FIND_IDS = {
 	CloseFindWidgetCommand: 'closeFindWidget',
 	ToggleCaseSensitiveCommand: 'toggleFindCaseSensitive',
 	ToggleWholeWordCommand: 'toggleFindWholeWord',
-	ToggleRegexCommand: 'toggleFindRegex'
-}
+	ToggleRegexCommand: 'toggleFindRegex',
+	ReplaceOneAction: 'editor.action.replaceOne',
+	ReplaceAllAction: 'editor.action.replaceAll'
+};
 
 export const MATCHES_LIMIT = 999;
 
 export class FindModelBoundToEditorModel {
 
-	private _editor:EditorCommon.ICommonCodeEditor;
+	private _editor:editorCommon.ICommonCodeEditor;
 	private _state:FindReplaceState;
 	private _toDispose:IDisposable[];
 	private _decorations: FindDecorations;
@@ -42,7 +44,7 @@ export class FindModelBoundToEditorModel {
 
 	private _updateDecorationsScheduler:RunOnceScheduler;
 
-	constructor(editor:EditorCommon.ICommonCodeEditor, state:FindReplaceState) {
+	constructor(editor:editorCommon.ICommonCodeEditor, state:FindReplaceState) {
 		this._editor = editor;
 		this._state = state;
 		this._toDispose = [];
@@ -53,18 +55,18 @@ export class FindModelBoundToEditorModel {
 		this._updateDecorationsScheduler = new RunOnceScheduler(() => this.research(false), 100);
 		this._toDispose.push(this._updateDecorationsScheduler);
 
-		this._toDispose.push(this._editor.addListener2(EditorCommon.EventType.CursorPositionChanged, (e:EditorCommon.ICursorPositionChangedEvent) => {
+		this._toDispose.push(this._editor.addListener2(editorCommon.EventType.CursorPositionChanged, (e:editorCommon.ICursorPositionChangedEvent) => {
 			if (e.reason === 'explicit' || e.reason === 'undo' || e.reason === 'redo') {
 				this._decorations.setStartPosition(this._editor.getPosition());
 			}
 		}));
 
 		this._ignoreModelContentChanged = false;
-		this._toDispose.push(this._editor.addListener2(EditorCommon.EventType.ModelContentChanged, (e:EditorCommon.IModelContentChangedEvent) => {
+		this._toDispose.push(this._editor.addListener2(editorCommon.EventType.ModelContentChanged, (e:editorCommon.IModelContentChangedEvent) => {
 			if (this._ignoreModelContentChanged) {
 				return;
 			}
-			if (e.changeType === EditorCommon.EventType.ModelContentChangedFlush) {
+			if (e.changeType === editorCommon.EventType.ModelContentChangedFlush) {
 				// a model.setValue() was called
 				this._decorations.reset();
 			}
@@ -91,8 +93,8 @@ export class FindModelBoundToEditorModel {
 		}
 	}
 
-	private static _getSearchRange(model:EditorCommon.IModel, searchOnlyEditableRange:boolean, findScope:EditorCommon.IEditorRange): EditorCommon.IEditorRange {
-		let searchRange:EditorCommon.IEditorRange;
+	private static _getSearchRange(model:editorCommon.IModel, searchOnlyEditableRange:boolean, findScope:editorCommon.IEditorRange): editorCommon.IEditorRange {
+		let searchRange:editorCommon.IEditorRange;
 
 		if (searchOnlyEditableRange) {
 			searchRange = model.getEditableRange();
@@ -108,8 +110,8 @@ export class FindModelBoundToEditorModel {
 		return searchRange;
 	}
 
-	private research(moveCursor:boolean, newFindScope?:EditorCommon.IEditorRange): void {
-		let findScope: EditorCommon.IEditorRange = null;
+	private research(moveCursor:boolean, newFindScope?:editorCommon.IEditorRange): void {
+		let findScope: editorCommon.IEditorRange = null;
 		if (typeof newFindScope !== 'undefined') {
 			findScope = newFindScope;
 		} else {
@@ -122,7 +124,7 @@ export class FindModelBoundToEditorModel {
 		let findMatches = this._findMatches(findScope, MATCHES_LIMIT);
 		this._decorations.set(findMatches, findScope);
 
-		this._state.change({ matchesCount: findMatches.length }, false);
+		this._state.changeMatchInfo(this._decorations.getCurrentMatchesPosition(this._editor.getSelection()), this._decorations.getCount());
 
 		if (moveCursor) {
 			this._moveToNextMatch(this._decorations.getStartPosition());
@@ -145,7 +147,7 @@ export class FindModelBoundToEditorModel {
 		return false;
 	}
 
-	private _moveToPrevMatch(before:EditorCommon.IEditorPosition, isRecursed:boolean = false): void {
+	private _moveToPrevMatch(before:editorCommon.IEditorPosition, isRecursed:boolean = false): void {
 		if (this._cannotFind()) {
 			return;
 		}
@@ -192,26 +194,27 @@ export class FindModelBoundToEditorModel {
 
 		let position = new Position(lineNumber, column);
 
-		let nextMatch = model.findPreviousMatch(this._state.searchString, position, this._state.isRegex, this._state.matchCase, this._state.wholeWord);
-		if (!nextMatch) {
+		let prevMatch = model.findPreviousMatch(this._state.searchString, position, this._state.isRegex, this._state.matchCase, this._state.wholeWord);
+		if (!prevMatch) {
 			// there is precisely one match and selection is on top of it
 			return;
 		}
 
-		if (!isRecursed && !searchRange.containsRange(nextMatch)) {
-			return this._moveToPrevMatch(nextMatch.getStartPosition(), true);
+		if (!isRecursed && !searchRange.containsRange(prevMatch)) {
+			return this._moveToPrevMatch(prevMatch.getStartPosition(), true);
 		}
 
-		this._decorations.setCurrentFindMatch(nextMatch);
-		this._editor.setSelection(nextMatch);
-		this._editor.revealRangeInCenterIfOutsideViewport(nextMatch);
+		let matchesPosition = this._decorations.setCurrentFindMatch(prevMatch);
+		this._state.changeMatchInfo(matchesPosition, this._decorations.getCount());
+		this._editor.setSelection(prevMatch);
+		this._editor.revealRangeInCenterIfOutsideViewport(prevMatch);
 	}
 
 	public moveToPrevMatch(): void {
 		this._moveToPrevMatch(this._editor.getSelection().getStartPosition());
 	}
 
-	public _moveToNextMatch(after:EditorCommon.IEditorPosition, isRecursed:boolean = false): void {
+	public _moveToNextMatch(after:editorCommon.IEditorPosition, isRecursed:boolean = false): void {
 		if (this._cannotFind()) {
 			return;
 		}
@@ -269,7 +272,8 @@ export class FindModelBoundToEditorModel {
 			return this._moveToNextMatch(nextMatch.getEndPosition(), true);
 		}
 
-		this._decorations.setCurrentFindMatch(nextMatch);
+		let matchesPosition = this._decorations.setCurrentFindMatch(nextMatch);
+		this._state.changeMatchInfo(matchesPosition, this._decorations.getCount());
 		this._editor.setSelection(nextMatch);
 		this._editor.revealRangeInCenterIfOutsideViewport(nextMatch);
 	}
@@ -282,16 +286,16 @@ export class FindModelBoundToEditorModel {
 		if (!this._state.isRegex) {
 			return this._state.replaceString;
 		}
-		let regexp = Strings.createRegExp(this._state.searchString, this._state.isRegex, this._state.matchCase, this._state.wholeWord);
+		let regexp = strings.createRegExp(this._state.searchString, this._state.isRegex, this._state.matchCase, this._state.wholeWord, true);
 		// Parse the replace string to support that \t or \n mean the right thing
 		let parsedReplaceString = parseReplaceString(this._state.replaceString);
 		return matchedString.replace(regexp, parsedReplaceString);
 	}
 
-	private _rangeIsMatch(range:EditorCommon.IEditorRange): boolean {
+	private _rangeIsMatch(range:editorCommon.IEditorRange): boolean {
 		let selection = this._editor.getSelection();
 		let selectionText = this._editor.getModel().getValueInRange(selection);
-		let regexp = Strings.createSafeRegExp(this._state.searchString, this._state.isRegex, this._state.matchCase, this._state.wholeWord);
+		let regexp = strings.createSafeRegExp(this._state.searchString, this._state.isRegex, this._state.matchCase, this._state.wholeWord);
 		let m = selectionText.match(regexp);
 		return (m && m[0].length === selectionText.length);
 	}
@@ -319,7 +323,7 @@ export class FindModelBoundToEditorModel {
 		}
 	}
 
-	private _findMatches(findScope: EditorCommon.IEditorRange, limitResultCount:number): EditorCommon.IEditorRange[] {
+	private _findMatches(findScope: editorCommon.IEditorRange, limitResultCount:number): editorCommon.IEditorRange[] {
 		let searchRange = FindModelBoundToEditorModel._getSearchRange(this._editor.getModel(), this._state.isReplaceRevealed, findScope);
 		return this._editor.getModel().findMatches(this._state.searchString, searchRange, this._state.isRegex, this._state.matchCase, this._state.wholeWord, limitResultCount);
 	}
@@ -335,8 +339,6 @@ export class FindModelBoundToEditorModel {
 		// Get all the ranges (even more than the highlighted ones)
 		let ranges = this._findMatches(findScope, Number.MAX_VALUE);
 
-		this._decorations.set([], findScope);
-
 		let replaceStrings:string[] = [];
 		for (let i = 0, len = ranges.length; i < len; i++) {
 			replaceStrings.push(this.getReplaceString(model.getValueInRange(ranges[i])));
@@ -344,9 +346,11 @@ export class FindModelBoundToEditorModel {
 
 		let command = new ReplaceAllCommand(ranges, replaceStrings);
 		this._executeEditorCommand('replaceAll', command);
+
+		this.research(false);
 	}
 
-	private _executeEditorCommand(source:string, command:EditorCommon.ICommand): void {
+	private _executeEditorCommand(source:string, command:editorCommon.ICommand): void {
 		try {
 			this._ignoreModelContentChanged = true;
 			this._editor.executeCommand(source, command);
@@ -357,6 +361,8 @@ export class FindModelBoundToEditorModel {
 }
 
 const BACKSLASH_CHAR_CODE = '\\'.charCodeAt(0);
+const DOLLAR_CHAR_CODE = '$'.charCodeAt(0);
+const ZERO_CHAR_CODE = '0'.charCodeAt(0);
 const n_CHAR_CODE = 'n'.charCodeAt(0);
 const t_CHAR_CODE = 't'.charCodeAt(0);
 
@@ -364,6 +370,7 @@ const t_CHAR_CODE = 't'.charCodeAt(0);
  * \n => LF
  * \t => TAB
  * \\ => \
+ * $0 => $& (see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/replace#Specifying_a_string_as_a_parameter)
  * everything else stays untouched
  */
 export function parseReplaceString(input:string): string {
@@ -400,6 +407,32 @@ export function parseReplaceString(input:string): string {
 				case t_CHAR_CODE:
 					// \t => TAB
 					replaceWithCharacter = '\t';
+					break;
+			}
+
+			if (replaceWithCharacter) {
+				result += input.substring(substrFrom, i - 1) + replaceWithCharacter;
+				substrFrom = i + 1;
+			}
+		}
+
+		if (chCode === DOLLAR_CHAR_CODE) {
+
+			// move to next char
+			i++;
+
+			if (i >= len) {
+				// string ends with a $
+				break;
+			}
+
+			let nextChCode = input.charCodeAt(i);
+			let replaceWithCharacter: string = null;
+
+			switch (nextChCode) {
+				case ZERO_CHAR_CODE:
+					// $0 => $&
+					replaceWithCharacter = '$&';
 					break;
 			}
 

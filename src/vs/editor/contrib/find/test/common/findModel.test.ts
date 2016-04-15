@@ -4,14 +4,14 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
-import assert = require('assert');
-import {FindModelBoundToEditorModel, parseReplaceString} from 'vs/editor/contrib/find/common/findModel';
-import * as EditorCommon from 'vs/editor/common/editorCommon';
-import {withMockCodeEditor} from 'vs/editor/test/common/mocks/mockCodeEditor';
+import * as assert from 'assert';
 import {Cursor} from 'vs/editor/common/controller/cursor';
-import {INewFindReplaceState, FindReplaceStateChangedEvent, FindReplaceState} from 'vs/editor/contrib/find/common/findState';
-import {Range} from 'vs/editor/common/core/range';
 import {Position} from 'vs/editor/common/core/position';
+import {Range} from 'vs/editor/common/core/range';
+import {Handler, ICommonCodeEditor, IRange} from 'vs/editor/common/editorCommon';
+import {FindModelBoundToEditorModel, parseReplaceString} from 'vs/editor/contrib/find/common/findModel';
+import {FindReplaceState} from 'vs/editor/contrib/find/common/findState';
+import {withMockCodeEditor} from 'vs/editor/test/common/mocks/mockCodeEditor';
 
 suite('FindModel', () => {
 
@@ -50,9 +50,26 @@ suite('FindModel', () => {
 
 		// \ with back reference => no treatment
 		testParse('hello\\0', 'hello\\0');
+
+
+
+		// $1 => no treatment
+		testParse('hello$1', 'hello$1');
+		// $2 => no treatment
+		testParse('hello$2', 'hello$2');
+		// $12 => no treatment
+		testParse('hello$12', 'hello$12');
+		// $$ => no treatment
+		testParse('hello$$', 'hello$$');
+		// $$0 => no treatment
+		testParse('hello$$0', 'hello$$0');
+
+		// $0 => $&
+		testParse('hello$0', 'hello$&');
+		testParse('hello$02', 'hello$&2');
 	});
 
-	function findTest(testName:string, callback:(editor:EditorCommon.ICommonCodeEditor, cursor:Cursor)=>void): void {
+	function findTest(testName:string, callback:(editor:ICommonCodeEditor, cursor:Cursor)=>void): void {
 		test(testName, () => {
 			withMockCodeEditor([
 				'// my cool header',
@@ -71,14 +88,14 @@ suite('FindModel', () => {
 		});
 	}
 
-	function fromRange(rng:EditorCommon.IRange): number[] {
+	function fromRange(rng:IRange): number[] {
 		return [rng.startLineNumber, rng.startColumn, rng.endLineNumber, rng.endColumn];
 	}
 
-	function _getFindState(editor:EditorCommon.ICommonCodeEditor) {
+	function _getFindState(editor:ICommonCodeEditor) {
 		let model = editor.getModel();
-		let currentFindMatches: EditorCommon.IRange[] = [];
-		let allFindMatches: EditorCommon.IRange[] = [];
+		let currentFindMatches: IRange[] = [];
+		let allFindMatches: IRange[] = [];
 
 		for (let dec of model.getAllDecorations()) {
 			if (dec.options.className === 'currentFindMatch') {
@@ -98,7 +115,7 @@ suite('FindModel', () => {
 		};
 	}
 
-	function assertFindState(editor:EditorCommon.ICommonCodeEditor, cursor:number[], highlighted:number[], findDecorations:number[][]): void {
+	function assertFindState(editor:ICommonCodeEditor, cursor:number[], highlighted:number[], findDecorations:number[][]): void {
 		assert.deepEqual(fromRange(editor.getSelection()), cursor, 'cursor');
 
 		let expectedState = {
@@ -338,7 +355,7 @@ suite('FindModel', () => {
 			]
 		);
 
-		cursor.configuration.handlerDispatcher.trigger('mouse', EditorCommon.Handler.MoveTo, {
+		cursor.configuration.handlerDispatcher.trigger('mouse', Handler.MoveTo, {
 			position: new Position(6, 20)
 		});
 
@@ -698,7 +715,7 @@ suite('FindModel', () => {
 			]
 		);
 
-		cursor.configuration.handlerDispatcher.trigger('mouse', EditorCommon.Handler.MoveTo, {
+		cursor.configuration.handlerDispatcher.trigger('mouse', Handler.MoveTo, {
 			position: new Position(6, 20)
 		});
 		assertFindState(
@@ -1014,7 +1031,7 @@ suite('FindModel', () => {
 			]
 		);
 
-		cursor.configuration.handlerDispatcher.trigger('mouse', EditorCommon.Handler.MoveTo, {
+		cursor.configuration.handlerDispatcher.trigger('mouse', Handler.MoveTo, {
 			position: new Position(6, 20)
 		});
 		assertFindState(
@@ -1175,7 +1192,7 @@ suite('FindModel', () => {
 			]
 		);
 
-		cursor.configuration.handlerDispatcher.trigger('mouse', EditorCommon.Handler.MoveTo, {
+		cursor.configuration.handlerDispatcher.trigger('mouse', Handler.MoveTo, {
 			position: new Position(6, 20)
 		});
 		assertFindState(
@@ -1201,6 +1218,48 @@ suite('FindModel', () => {
 		assert.equal(editor.getModel().getLineContent(6), '    cout << "hi world, hi!" << endl;');
 		assert.equal(editor.getModel().getLineContent(7), '    cout << "hi world again" << endl;');
 		assert.equal(editor.getModel().getLineContent(8), '    cout << "hi world again" << endl;');
+
+		findModel.dispose();
+		findState.dispose();
+	});
+
+	findTest('replaceAll two spaces with one space', (editor, cursor) => {
+		let findState = new FindReplaceState();
+		findState.change({ searchString: '  ', replaceString: ' ' }, false);
+		let findModel = new FindModelBoundToEditorModel(editor, findState);
+
+		assertFindState(
+			editor,
+			[1, 1, 1, 1],
+			null,
+			[
+				[6, 1, 6, 3],
+				[6, 3, 6, 5],
+				[7, 1, 7, 3],
+				[7, 3, 7, 5],
+				[8, 1, 8, 3],
+				[8, 3, 8, 5],
+				[9, 1, 9, 3],
+				[9, 3, 9, 5]
+			]
+		);
+
+		findModel.replaceAll();
+		assertFindState(
+			editor,
+			[9, 3, 9, 3],
+			null,
+			[
+				[6, 1, 6, 3],
+				[7, 1, 7, 3],
+				[8, 1, 8, 3],
+				[9, 1, 9, 3]
+			]
+		);
+		assert.equal(editor.getModel().getLineContent(6), '  cout << "hello world, Hello!" << endl;');
+		assert.equal(editor.getModel().getLineContent(7), '  cout << "hello world again" << endl;');
+		assert.equal(editor.getModel().getLineContent(8), '  cout << "Hello world again" << endl;');
+		assert.equal(editor.getModel().getLineContent(9), '  cout << "helloworld again" << endl;');
 
 		findModel.dispose();
 		findState.dispose();

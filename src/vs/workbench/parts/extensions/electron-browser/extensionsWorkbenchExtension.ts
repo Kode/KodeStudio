@@ -8,7 +8,7 @@ import errors = require('vs/base/common/errors');
 import platform = require('vs/platform/platform');
 import { Promise } from 'vs/base/common/winjs.base';
 import { IWorkbenchContribution } from 'vs/workbench/common/contributions';
-import { IExtensionsService, IGalleryService } from 'vs/workbench/parts/extensions/common/extensions';
+import { IExtensionsService, IGalleryService, IExtensionTipsService, ExtensionsLabel } from 'vs/workbench/parts/extensions/common/extensions';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { IMessageService } from 'vs/platform/message/common/message';
 import Severity from 'vs/base/common/severity';
@@ -16,9 +16,9 @@ import { IWorkspaceContextService } from 'vs/workbench/services/workspace/common
 import { ReloadWindowAction } from 'vs/workbench/electron-browser/actions';
 import wbaregistry = require('vs/workbench/common/actionRegistry');
 import { SyncActionDescriptor } from 'vs/platform/actions/common/actions';
-import { ListExtensionsAction, InstallExtensionAction, ListOutdatedExtensionsAction } from './extensionsActions';
+import { ListExtensionsAction, InstallExtensionAction, ListOutdatedExtensionsAction, ListSuggestedExtensionsAction } from './extensionsActions';
+import { ExtensionTipsService } from './extensionTipsService';
 import { IQuickOpenRegistry, Extensions, QuickOpenHandlerDescriptor } from 'vs/workbench/browser/quickopen';
-
 import {ipcRenderer as ipc} from 'electron';
 
 interface IInstallExtensionsRequest {
@@ -42,9 +42,11 @@ export class ExtensionsWorkbenchExtension implements IWorkbenchContribution {
 			this.install(options.extensionsToInstall).done(null, errors.onUnexpectedError);
 		}
 
-		const extensionsCategory = nls.localize('extensionsCategory', "Extensions");
+		// add service
+		instantiationService.addSingleton(IExtensionTipsService, this.instantiationService.createInstance(ExtensionTipsService));
+
 		const actionRegistry = (<wbaregistry.IWorkbenchActionRegistry> platform.Registry.as(wbaregistry.Extensions.WorkbenchActions));
-		actionRegistry.registerWorkbenchAction(new SyncActionDescriptor(ListExtensionsAction, ListExtensionsAction.ID, ListExtensionsAction.LABEL), extensionsCategory);
+		actionRegistry.registerWorkbenchAction(new SyncActionDescriptor(ListExtensionsAction, ListExtensionsAction.ID, ListExtensionsAction.LABEL), ExtensionsLabel);
 
 		(<IQuickOpenRegistry>platform.Registry.as(Extensions.Quickopen)).registerQuickOpenHandler(
 			new QuickOpenHandlerDescriptor(
@@ -56,7 +58,8 @@ export class ExtensionsWorkbenchExtension implements IWorkbenchContribution {
 		);
 
 		if (galleryService.isEnabled()) {
-			actionRegistry.registerWorkbenchAction(new SyncActionDescriptor(InstallExtensionAction, InstallExtensionAction.ID, InstallExtensionAction.LABEL), extensionsCategory);
+
+			actionRegistry.registerWorkbenchAction(new SyncActionDescriptor(InstallExtensionAction, InstallExtensionAction.ID, InstallExtensionAction.LABEL), ExtensionsLabel);
 
 			(<IQuickOpenRegistry>platform.Registry.as(Extensions.Quickopen)).registerQuickOpenHandler(
 				new QuickOpenHandlerDescriptor(
@@ -67,7 +70,7 @@ export class ExtensionsWorkbenchExtension implements IWorkbenchContribution {
 				)
 			);
 
-			actionRegistry.registerWorkbenchAction(new SyncActionDescriptor(ListOutdatedExtensionsAction, ListOutdatedExtensionsAction.ID, ListOutdatedExtensionsAction.LABEL), extensionsCategory);
+			actionRegistry.registerWorkbenchAction(new SyncActionDescriptor(ListOutdatedExtensionsAction, ListOutdatedExtensionsAction.ID, ListOutdatedExtensionsAction.LABEL), ExtensionsLabel);
 
 			(<IQuickOpenRegistry>platform.Registry.as(Extensions.Quickopen)).registerQuickOpenHandler(
 				new QuickOpenHandlerDescriptor(
@@ -75,6 +78,18 @@ export class ExtensionsWorkbenchExtension implements IWorkbenchContribution {
 					'OutdatedExtensionsHandler',
 					'ext update ',
 					nls.localize('outdatedExtensionsCommands', "Update Outdated Extensions")
+				)
+			);
+
+			// add extension tips services
+			actionRegistry.registerWorkbenchAction(new SyncActionDescriptor(ListSuggestedExtensionsAction, ListSuggestedExtensionsAction.ID, ListSuggestedExtensionsAction.LABEL), ExtensionsLabel);
+
+			(<IQuickOpenRegistry>platform.Registry.as(Extensions.Quickopen)).registerQuickOpenHandler(
+				new QuickOpenHandlerDescriptor(
+					'vs/workbench/parts/extensions/electron-browser/extensionsQuickOpen',
+					'SuggestedExtensionHandler',
+					'ext recommend ',
+					nls.localize('suggestedExtensionsCommands', "Show Extension Recommendations")
 				)
 			);
 		}

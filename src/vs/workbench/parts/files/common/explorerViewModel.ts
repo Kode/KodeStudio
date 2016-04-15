@@ -2,6 +2,7 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
+'use strict';
 
 import assert = require('vs/base/common/assert');
 import types = require('vs/base/common/types');
@@ -10,8 +11,6 @@ import {isLinux} from 'vs/base/common/platform';
 import paths = require('vs/base/common/paths');
 import {guessMimeTypes} from 'vs/base/common/mime';
 import {IFileStat} from 'vs/platform/files/common/files';
-
-'use strict';
 
 export enum StatType {
 	FILE,
@@ -325,12 +324,12 @@ export class NewStatPlaceholder extends FileStat {
 	public destroy(): void {
 		this.parent.removeChild(this);
 
-		delete this.isDirectoryResolved;
-		delete this.name;
-		delete this.isDirectory;
-		delete this.hasChildren;
-		delete this.mtime;
-		delete this.mime;
+		this.isDirectoryResolved = void 0;
+		this.name = void 0;
+		this.isDirectory = void 0;
+		this.hasChildren = void 0;
+		this.mtime = void 0;
+		this.mime = void 0;
 	}
 
 	public getId(): string {
