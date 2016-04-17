@@ -95,8 +95,8 @@ var darwinCreditsTemplate = product.darwinCredits && _.template(fs.readFileSync(
 var config = {
 	version: packageJson.electronVersion,
 	productAppName: product.nameLong,
-	companyName: 'Microsoft Corporation',
-	copyright: 'Copyright (C) 2015 Microsoft. All rights reserved',
+	companyName: 'KTX Software Development',
+	copyright: 'Copyright (C) 2016 KTX Software Development. All rights reserved',
 	darwinIcon: 'resources/darwin/code.icns',
 	darwinBundleIdentifier: product.darwinBundleIdentifier,
 	darwinApplicationCategoryType: 'public.app-category.developer-tools',
@@ -211,6 +211,7 @@ function packageTask(platform, arch, opts) {
 			deps
 		);
 
+		all = es.merge(all, gulp.src('resources/welcome.md', { base: '.' }));
 		if (platform === 'win32') {
 			all = es.merge(all, gulp.src('resources/win32/code_file.ico', { base: '.' }));
 		} else if (platform === 'linux') {
