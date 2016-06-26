@@ -161,6 +161,7 @@ export abstract class ConfigurationService extends eventEmitter.EventEmitter imp
 											sourceMaps: true,
 											runtimeExecutable: exec,
 											kha: ConfigurationService.findKha(merged),
+											ffmpeg: merged.kha.ffmpeg,
 											cwd: this.contextService.getWorkspace().resource.fsPath
 										}
 									]
@@ -171,7 +172,7 @@ export abstract class ConfigurationService extends eventEmitter.EventEmitter imp
 					}
 				}
 				catch (error) {
-					
+
 				}
 
 				return {
