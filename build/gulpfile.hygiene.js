@@ -38,7 +38,7 @@ const eolFilter = [
 	'!extensions/**/out/**',
 	'!**/node_modules/**',
 	'!**/fixtures/**',
-	'!**/*.{svg,exe,png,bmp,scpt,bat,cmd,cur,ttf,woff,eot}',
+	'!**/*.{svg,exe,png,bmp,scpt,bat,cmd,cur,ttf,woff,eot,ico,icns}',
 	'!build/{lib,tslintRules}/**/*.js',
 	'!build/monaco/**',
 	'!build/win32/**',
