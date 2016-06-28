@@ -1,10 +1,10 @@
 {
-  "name": "code-oss-dev",
+  "name": "KodeStudio",
   "version": "1.8.1",
   "electronVersion": "1.4.6",
   "distro": "8c3e97e3425cc9814496472ab73e076de2ba99ee",
   "author": {
-    "name": "Microsoft Corporation"
+    "name": "KTX Software Development"
   },
   "main": "./out/main",
   "private": true,
