@@ -21,6 +21,9 @@ import {IConfigurationRegistry, Extensions} from './configurationRegistry';
 import {Registry} from 'vs/platform/platform';
 import Event, {Emitter} from 'vs/base/common/event';
 import {JSONPath} from 'vs/base/common/json';
+import {ExtensionsRegistry} from 'vs/platform/extensions/common/extensionsRegistry';
+import fs = require('fs');
+import path = require('path');
 
 
 // ---- service abstract implementation
@@ -125,6 +128,16 @@ export abstract class ConfigurationService implements IConfigurationService, IDi
 		return this.doLoadConfiguration(section);
 	}
 
+	public static findKha(values): String {
+		if (values.kha) {
+			let khapath = values.kha.khaPath;
+			if (khapath.length > 0) {
+				return khapath;
+			}
+		}
+		return path.join(ExtensionsRegistry.getExtensionDescription('ktx.kha').extensionFolderPath, 'Kha');
+	}
+
 	private doLoadConfiguration(section?: string): TPromise<any> {
 
 		// Load globals
@@ -142,6 +155,41 @@ export abstract class ConfigurationService implements IConfigurationService, IDi
 				consolidated.contents,				// source: workspace configured values
 				true								// overwrite
 			);
+
+			try {
+				if (fs.statSync(this.contextService.toResource('khafile.js').fsPath).isFile()) {
+					let exec = process.execPath;
+					if (exec.indexOf('Electron Helper') >= 0) {
+						let dir = exec.substring(0, exec.lastIndexOf('/'));
+						exec = paths.join(dir, '..', '..', '..', '..', 'MacOS', 'Electron');
+					}
+
+					merged = objects.mixin(
+						merged,
+						{
+							launch: {
+								configurations: [
+									{
+										name: 'Launch',
+										type: 'chrome',
+										request: 'launch',
+										file: 'build/debug-html5',
+										sourceMaps: true,
+										runtimeExecutable: exec,
+										kha: ConfigurationService.findKha(merged),
+										ffmpeg: merged.kha.ffmpeg,
+										cwd: this.contextService.getWorkspace().resource.fsPath
+									}
+								]
+							}
+						},
+						true
+					);
+				}
+			}
+			catch (error) {
+
+			}
 
 			let parseErrors = [];
 			if (consolidated.parseErrors) {

@@ -1,10 +1,11 @@
 {
-	"nameShort": "Code - OSS",
-	"nameLong": "Code - OSS",
-	"applicationName": "code-oss",
-	"dataFolderName": ".vscode-oss",
-	"win32MutexName": "vscodeoss",
-	"licenseUrl": "https://github.com/Microsoft/vscode/blob/master/LICENSE.txt",
-	"darwinBundleIdentifier": "com.visualstudio.code.oss",
-	"reportIssueUrl": "https://github.com/Microsoft/vscode/issues/new"
+	"nameShort": "Kode Studio",
+	"nameLong": "Kode Studio",
+	"applicationName": "kodestudio",
+	"dataFolderName": ".kodestudio",
+	"win32MutexName": "kodestudio",
+	"licenseUrl": "https://github.com/KTXSoftware/KodeStudio/blob/master/LICENSE.txt",
+	"darwinBundleIdentifier": "org.kodestudio",
+	"reportIssueUrl": "https://github.com/Microsoft/vscode/issues/new",
+	"welcomePage": "resources/welcome.md"
 }

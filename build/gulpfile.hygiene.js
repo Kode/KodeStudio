@@ -25,7 +25,7 @@ var eolFilter = [
 	'!extensions/**/out/**',
 	'!**/node_modules/**',
 	'!**/fixtures/**',
-	'!**/*.{svg,exe,png,scpt,bat,cmd,cur,ttf,woff,eot}',
+	'!**/*.{svg,exe,png,scpt,bat,cmd,cur,ttf,woff,eot,ico,icns}',
 	'!build/{lib,tslintRules}/**/*.js',
 	'!build/monaco/**/*'
 ];
