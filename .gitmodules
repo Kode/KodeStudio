@@ -1,0 +1,20 @@
+[submodule "extensions/haxe"]
+	path = extensions/haxe
+	url = ../vshaxe
+	branch = master
+[submodule "extensions/shader"]
+	path = extensions/shader
+	url = ../vscode-shader
+	branch = master
+[submodule "extensions/chrome-debug"]
+	path = extensions/chrome-debug
+	url = ../vscode-chrome-debug
+	branch = master
+[submodule "extensions/hxcpp-debug"]
+	path = extensions/hxcpp-debug
+	url = ../vscode-hxcpp-debug
+	branch = master
+[submodule "extensions/kha"]
+	path = extensions/kha
+	url = ../vscode-kha
+	branch = master
