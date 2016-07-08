@@ -128,16 +128,6 @@ export abstract class ConfigurationService implements IConfigurationService, IDi
 		return this.doLoadConfiguration(section);
 	}
 
-	public static findKha(values): String {
-		if (values.kha) {
-			let khapath = values.kha.khaPath;
-			if (khapath.length > 0) {
-				return khapath;
-			}
-		}
-		return path.join(ExtensionsRegistry.getExtensionDescription('ktx.kha').extensionFolderPath, 'Kha');
-	}
-
 	private doLoadConfiguration(section?: string): TPromise<any> {
 
 		// Load globals
@@ -176,8 +166,6 @@ export abstract class ConfigurationService implements IConfigurationService, IDi
 										file: 'build/debug-html5',
 										sourceMaps: true,
 										runtimeExecutable: exec,
-										kha: ConfigurationService.findKha(merged),
-										ffmpeg: merged.kha.ffmpeg,
 										cwd: this.contextService.getWorkspace().resource.fsPath
 									}
 								]
@@ -188,7 +176,7 @@ export abstract class ConfigurationService implements IConfigurationService, IDi
 				}
 			}
 			catch (error) {
-
+				console.error('Error creating Kha launch configuration: ' + error);
 			}
 
 			let parseErrors = [];
