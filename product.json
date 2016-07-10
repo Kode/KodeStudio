@@ -12,6 +12,5 @@
 	"win32AppUserModelId": "KodeStudio",
 	"darwinBundleIdentifier": "org.kodestudio",
 	"reportIssueUrl": "https://github.com/KTXSoftware/KodeStudio/issues/new"
-	"welcomePage": "resources/welcome.md",
 	"kodeStudioVersion": "16.7.0"
 }
