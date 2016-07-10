@@ -179,7 +179,8 @@ app.setPath('userData', userData);
 
 function findKhaAppParameter() {
 	var argv = process.argv.slice(1);
-	for (var i = 0; i < argv.length; i++) {
+	if (argv[0] !== '-chromedebug') return null;
+	for (var i = 1; i < argv.length; i++) {
 		if (argv[i].trim().length > 0 && argv[i] !== '.' && argv[i][0] !== '-') {
 			return argv[i];
 		}
