@@ -13,6 +13,5 @@
 	"darwinBundleIdentifier": "org.kodestudio",
 	"reportIssueUrl": "https://github.com/KTXSoftware/KodeStudio/issues/new",
 	"urlProtocol": "code-oss"
-	"welcomePage": "resources/welcome.md",
 	"kodeStudioVersion": "16.7.0"
 }
