@@ -166,6 +166,8 @@ export abstract class ConfigurationService implements IConfigurationService, IDi
 										file: 'build/debug-html5',
 										sourceMaps: true,
 										runtimeExecutable: exec,
+										kha: '${command.FindKha}',
+										ffmpeg: '${command.FindFFMPEG}',
 										cwd: this.contextService.getWorkspace().resource.fsPath
 									}
 								]

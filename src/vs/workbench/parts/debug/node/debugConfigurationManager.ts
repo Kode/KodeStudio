@@ -302,7 +302,7 @@ export class ConfigurationManager implements debug.IConfigurationManager {
 					return TPromise.wrapError(nls.localize('interactiveVariableNotFound', "Adapter {0} does not contribute variable {1} that is specified in launch configuration.", this.adapter.type, interactiveVariable));
 				} else {
 					return this.commandService.executeCommand<string>(commandId, this.configuration).then(result => {
-						if (!result) {
+						if (result === null || result === undefined) {
 							this.configuration.silentlyAbort = true;
 						}
 						interactiveVariablesToSubstitutes[interactiveVariable].forEach(substitute =>
