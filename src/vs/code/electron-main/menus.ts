@@ -863,7 +863,7 @@ export class VSCodeMenu {
 			message: product.nameLong,
 			detail: nls.localize('aboutDetail',
 				"\nVersion {0}\nCommit {1}\nDate {2}\nShell {3}\nRenderer {4}\nNode {5}",
-				app.getVersion(),
+				this.envService.product.kodeStudioVersion,
 				product.commit || 'Unknown',
 				product.date || 'Unknown',
 				process.versions['electron'],
