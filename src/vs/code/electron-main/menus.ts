@@ -831,7 +831,7 @@ export class VSCodeMenu {
 			message: this.envService.product.nameLong,
 			detail: nls.localize('aboutDetail',
 				"\nVersion {0}\nCommit {1}\nDate {2}\nShell {3}\nRenderer {4}\nNode {5}",
-				app.getVersion(),
+				this.envService.product.kodeStudioVersion,
 				this.envService.product.commit || 'Unknown',
 				this.envService.product.date || 'Unknown',
 				process.versions['electron'],
