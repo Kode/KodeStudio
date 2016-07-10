@@ -33,15 +33,7 @@ export abstract class AbstractGettingStarted implements IWorkbenchContribution {
 	}
 
 	protected handleWelcome(): void {
-		let firstStartup = !this.storageService.get(AbstractGettingStarted.hideWelcomeSettingskey);
 
-		if (firstStartup && this.welcomePageURL) {
-			this.telemetryService.getTelemetryInfo().then(info => {
-				let url = this.getUrl(info);
-				this.openExternal(url);
-				this.storageService.store(AbstractGettingStarted.hideWelcomeSettingskey, true);
-			});
-		}
 	}
 
 	private getUrl(telemetryInfo: ITelemetryInfo): string {
