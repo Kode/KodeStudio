@@ -15,4 +15,6 @@
 	"darwinBundleIdentifier": "com.visualstudio.code.oss",
 	"reportIssueUrl": "https://github.com/Microsoft/vscode/issues/new",
 	"urlProtocol": "code-oss"
+	"welcomePage": "resources/welcome.md",
+	"kodeStudioVersion": "16.7.0"
 }
