@@ -116,7 +116,7 @@ var config = {
 gulp.task('electron', function () {
 	// Force windows to use ia32
 	var arch = process.env.VSCODE_ELECTRON_PLATFORM || (process.platform === 'win32' ? 'ia32' : process.arch);
-	return electron.dest(path.join(build, 'electron'), _.extend({}, config, { arch: arch, ffmpegChromium: true }));
+	return electron.dest(path.join(build, 'electron'), _.extend({}, config, { arch: arch, ffmpegChromium: true, productVersion: packageJson.kodeStudioVersion }));
 });
 
 function mixinProduct() {
