@@ -15,7 +15,7 @@ export interface IConfiguration {
 
 export const DEFAULT_INDENTATION = {
 	tabSize: 4,
-	insertSpaces: true,
+	insertSpaces: false,
 	detectIndentation: true
 };
 export const DEFAULT_TRIM_AUTO_WHITESPACE = true;
