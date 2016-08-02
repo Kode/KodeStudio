@@ -21,9 +21,7 @@ import {IConfigurationRegistry, Extensions} from './configurationRegistry';
 import {Registry} from 'vs/platform/platform';
 import Event, {Emitter} from 'vs/base/common/event';
 import {JSONPath} from 'vs/base/common/json';
-import {ExtensionsRegistry} from 'vs/platform/extensions/common/extensionsRegistry';
 import fs = require('fs');
-import path = require('path');
 
 
 // ---- service abstract implementation
@@ -149,7 +147,7 @@ export abstract class ConfigurationService implements IConfigurationService, IDi
 			try {
 				if (fs.statSync(this.contextService.toResource('khafile.js').fsPath).isFile()) {
 					let exec = process.execPath;
-					if (exec.indexOf('Electron Helper') >= 0) {
+					if (exec.indexOf('Kode Studio Helper') >= 0) {
 						let dir = exec.substring(0, exec.lastIndexOf('/'));
 						exec = paths.join(dir, '..', '..', '..', '..', 'MacOS', 'Electron');
 					}
