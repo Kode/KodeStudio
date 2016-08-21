@@ -14,6 +14,6 @@
 	"win32ShellNameShort": "C&ode - OSS",
 	"darwinBundleIdentifier": "com.visualstudio.code.oss",
 	"reportIssueUrl": "https://github.com/Microsoft/vscode/issues/new",
-	"urlProtocol": "code-oss"
-	"kodeStudioVersion": "16.7.3"
+	"urlProtocol": "code-oss",
+	"kodeStudioVersion": "16.8.0"
 }
