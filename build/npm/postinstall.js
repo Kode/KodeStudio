@@ -40,7 +40,8 @@ const extensions = [
 	'merge-conflict',
 	'emmet',
 	'npm',
-	'jake'
+	'jake',
+	'haxe'
 ];
 
 extensions.forEach(extension => npmInstall(`extensions/${extension}`));
