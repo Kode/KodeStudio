@@ -136,7 +136,7 @@ function packageTask(platform, arch, opts) {
 			.pipe(rename(function (path) { path.dirname = path.dirname.replace(new RegExp('^' + out), 'out'); }))
 			.pipe(util.setExecutableBit(['**/*.sh']));
 
-		const extensions = gulp.src([
+		let extensionFiles = [
 			'extensions/**',
 			'!extensions/*/src/**',
 			'!extensions/*/out/**/test/**',
@@ -150,7 +150,19 @@ function packageTask(platform, arch, opts) {
 			'!extensions/typescript/bin/**',
 			'!extensions/vscode-api-tests/**',
 			'!extensions/vscode-colorize-tests/**'
-		], { base: '.' });
+		];
+		if (platform !== 'linux' || arch !== 'ia32') extensionFiles.push('!extensions/kha/**/*-linux32');
+		if (platform !== 'linux' || arch !== 'x64') extensionFiles.push('!extensions/kha/**/*-linux64');
+		if (platform !== 'linux' || arch !== 'arm') extensionFiles.push('!extensions/kha/**/*-linuxarm');
+		if (platform !== 'darwin') {
+			extensionFiles.push('!extensions/kha/**/*-osx');
+			extensionFiles.push('!extensions/kha/**/*-macos');
+		}
+		if (platform !== 'win32') {
+			extensionFiles.push('!extensions/kha/**/*.exe');
+			extensionFiles.push('!extensions/kha/**/*.dll');
+		}
+		const extensions = gulp.src(extensionFiles, { base: '.' });
 
 		const sources = es.merge(src, extensions)
 			.pipe(nlsDev.createAdditionalLanguageFiles(languages, path.join(__dirname, '..', 'i18n')))
