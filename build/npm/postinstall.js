@@ -41,6 +41,8 @@ const extensions = [
 	'emmet',
 	'npm',
 	'jake',
+	'chrome-debug/core',
+	'chrome-debug',
 	'haxe'
 ];
 
