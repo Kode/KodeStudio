@@ -28,7 +28,7 @@ import {
 } from 'vs/workbench/parts/extensions/browser/extensionsActions';
 import { OpenExtensionsFolderAction, InstallVSIXAction } from 'vs/workbench/parts/extensions/electron-browser/extensionsActions';
 import { ExtensionsInput } from 'vs/workbench/parts/extensions/common/extensionsInput';
-import { ViewletRegistry, Extensions as ViewletExtensions, ViewletDescriptor } from 'vs/workbench/browser/viewlet';
+//import { ViewletRegistry, Extensions as ViewletExtensions, ViewletDescriptor } from 'vs/workbench/browser/viewlet';
 import { ExtensionEditor } from 'vs/workbench/parts/extensions/browser/extensionEditor';
 import { StatusUpdater } from 'vs/workbench/parts/extensions/electron-browser/extensionsViewlet';
 import { IQuickOpenRegistry, Extensions, QuickOpenHandlerDescriptor } from 'vs/workbench/browser/quickopen';
@@ -86,7 +86,7 @@ const editorDescriptor = new EditorDescriptor(
 
 Registry.as<IEditorRegistry>(EditorExtensions.Editors)
 	.registerEditor(editorDescriptor, [new SyncDescriptor(ExtensionsInput)]);
-
+/*
 // Viewlet
 const viewletDescriptor = new ViewletDescriptor(
 	'vs/workbench/parts/extensions/electron-browser/extensionsViewlet',
@@ -99,7 +99,7 @@ const viewletDescriptor = new ViewletDescriptor(
 
 Registry.as<ViewletRegistry>(ViewletExtensions.Viewlets)
 	.registerViewlet(viewletDescriptor);
-
+*/
 // Global actions
 const actionRegistry = Registry.as<IWorkbenchActionRegistry>(WorkbenchActionExtensions.WorkbenchActions);
 
