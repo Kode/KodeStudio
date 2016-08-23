@@ -16,7 +16,9 @@ const extensions = [
 	'php',
 	'javascript',
 	'css',
-	'haxe'
+	'haxe',
+	'chrome-debug/core',
+	'chrome-debug'
 ];
 
 extensions.forEach(extension => {
