@@ -18,3 +18,11 @@
 	path = extensions/kha
 	url = ../vscode-kha
 	branch = master
+[submodule "extensions/krom"]
+	path = extensions/krom
+	url = ../vscode-krom
+	branch = master
+[submodule "extensions/krom-debug"]
+	path = extensions/krom-debug
+	url = ../vscode-krom-debug
+	branch = master
