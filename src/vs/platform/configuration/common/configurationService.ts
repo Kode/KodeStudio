@@ -158,7 +158,7 @@ export abstract class ConfigurationService implements IConfigurationService, IDi
 							launch: {
 								configurations: [
 									{
-										name: 'Launch',
+										name: 'HTML5',
 										type: 'chrome',
 										request: 'launch',
 										file: 'build/debug-html5',
@@ -166,6 +166,17 @@ export abstract class ConfigurationService implements IConfigurationService, IDi
 										runtimeExecutable: exec,
 										kha: '${command.FindKha}',
 										ffmpeg: '${command.FindFFMPEG}',
+										cwd: this.contextService.getWorkspace().resource.fsPath
+									},
+									{
+										name: 'Krom',
+										type: 'krom',
+										request: 'launch',
+										file: 'build/krom',
+										sourceMaps: true,
+										kha: '${command.FindKha}',
+										ffmpeg: '${command.FindFFMPEG}',
+										krom: '${command.FindKrom}',
 										cwd: this.contextService.getWorkspace().resource.fsPath
 									}
 								]
@@ -176,7 +187,7 @@ export abstract class ConfigurationService implements IConfigurationService, IDi
 				}
 			}
 			catch (error) {
-				console.error('Error creating Kha launch configuration: ' + error);
+				console.error('Error creating launch configurations: ' + error);
 			}
 
 			let parseErrors = [];
