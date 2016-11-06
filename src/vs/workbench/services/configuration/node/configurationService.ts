@@ -24,6 +24,7 @@ import { ConfigurationService as BaseConfigurationService } from 'vs/platform/co
 import { IWorkspaceConfigurationValues, IWorkspaceConfigurationService, IWorkspaceConfigurationValue, CONFIG_DEFAULT_NAME, WORKSPACE_CONFIG_FOLDER_DEFAULT_NAME, WORKSPACE_STANDALONE_CONFIGURATIONS, WORKSPACE_CONFIG_DEFAULT_PATH } from 'vs/workbench/services/configuration/common/configuration';
 import { EventType as FileEventType, FileChangeType, FileChangesEvent } from 'vs/platform/files/common/files';
 import Event, { Emitter } from 'vs/base/common/event';
+import * as fs from 'fs';
 
 interface IStat {
 	resource: uri;
@@ -101,14 +102,65 @@ export class WorkspaceConfigurationService implements IWorkspaceConfigurationSer
 		this.toDispose.push(this.baseConfigurationService.onDidUpdateConfiguration(e => this.onBaseConfigurationChanged(e)));
 	}
 
+	private mixinLaunchConfigs(merged: any): any {
+		try {
+			if (fs.statSync(this.contextService.toResource('khafile.js').fsPath).isFile()) {
+				let exec = process.execPath;
+				if (exec.indexOf('Kode Studio Helper') >= 0) {
+					let dir = exec.substring(0, exec.lastIndexOf('/'));
+					exec = paths.join(dir, '..', '..', '..', '..', 'MacOS', 'Electron');
+				}
+
+				merged = objects.mixin(
+					merged,
+					{
+						launch: {
+							configurations: [
+								{
+									name: 'HTML5',
+									type: 'chrome',
+									request: 'launch',
+									file: 'build/debug-html5',
+									sourceMaps: true,
+									runtimeExecutable: exec,
+									kha: '${command.FindKha}',
+									ffmpeg: '${command.FindFFMPEG}',
+									cwd: this.contextService.getWorkspace().resource.fsPath
+								},
+								{
+									name: 'Krom',
+									type: 'krom',
+									request: 'launch',
+									file: 'build/krom',
+									sourceMaps: true,
+									kha: '${command.FindKha}',
+									ffmpeg: '${command.FindFFMPEG}',
+									krom: '${command.FindKrom}',
+									cwd: this.contextService.getWorkspace().resource.fsPath,
+									webRoot: '${workspaceRoot}/build/krom'
+								}
+							]
+						}
+					},
+					true
+				);
+			}
+		}
+		catch (error) {
+			console.error('Error creating launch configurations: ' + error);
+		}
+		return merged;
+	}
+
 	private onBaseConfigurationChanged(e: IConfigurationServiceEvent): void {
 
 		// update cached config when base config changes
-		const newConfig = objects.mixin(
+		let newConfig = objects.mixin(
 			objects.clone(this.baseConfigurationService.getConfiguration()),	// target: global/default values (do NOT modify)
 			this.cachedWorkspaceConfig,											// source: workspace configured values
 			true																// overwrite
 		);
+		newConfig = this.mixinLaunchConfigs(newConfig);
 
 		// emit this as update to listeners if changed
 		if (!objects.equals(this.cachedConfig, newConfig)) {
@@ -206,15 +258,19 @@ export class WorkspaceConfigurationService implements IWorkspaceConfigurationSer
 			this.cachedWorkspaceKeys = workspaceConfigKeys;
 
 			// Override base (global < user) with workspace locals (global < user < workspace)
-			this.cachedConfig = objects.mixin(
+			let merged = objects.mixin(
 				objects.clone(this.baseConfigurationService.getConfiguration()), 	// target: global/default values (do NOT modify)
 				this.cachedWorkspaceConfig,											// source: workspace configured values
 				true																// overwrite
 			);
-			return {
-				consolidated: this.cachedConfig,
-				workspace: this.cachedWorkspaceConfig
-			};
+
+			merged = this.mixinLaunchConfigs(merged);
+
+			return merged;
+		}).then(result => {
+			this.cachedConfig = result;
+
+			return this.getConfiguration(section);
 		});
 	}
 
