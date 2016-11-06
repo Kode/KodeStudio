@@ -177,7 +177,8 @@ export abstract class ConfigurationService implements IConfigurationService, IDi
 										kha: '${command.FindKha}',
 										ffmpeg: '${command.FindFFMPEG}',
 										krom: '${command.FindKrom}',
-										cwd: this.contextService.getWorkspace().resource.fsPath
+										cwd: this.contextService.getWorkspace().resource.fsPath,
+										webRoot: '${workspaceRoot}/build/krom'
 									}
 								]
 							}
