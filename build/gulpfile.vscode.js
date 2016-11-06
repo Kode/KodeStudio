@@ -212,16 +212,16 @@ function packageTask(platform, arch, opts) {
 			'!extensions/vscode-colorize-tests/**',
 			...builtInExtensions.map(e => `!extensions/${e.name}/**`)
 		];
-		if (platform !== 'linux' || arch !== 'ia32') extensionFiles.push('!extensions/kha/**/*-linux32');
-		if (platform !== 'linux' || arch !== 'x64') extensionFiles.push('!extensions/kha/**/*-linux64');
-		if (platform !== 'linux' || arch !== 'arm') extensionFiles.push('!extensions/kha/**/*-linuxarm');
+		if (platform !== 'linux' || arch !== 'ia32') extensionsList.push('!extensions/kha/**/*-linux32');
+		if (platform !== 'linux' || arch !== 'x64') extensionsList.push('!extensions/kha/**/*-linux64');
+		if (platform !== 'linux' || arch !== 'arm') extensionsList.push('!extensions/kha/**/*-linuxarm');
 		if (platform !== 'darwin') {
-			extensionFiles.push('!extensions/kha/**/*-osx');
-			extensionFiles.push('!extensions/kha/**/*-macos');
+			extensionsList.push('!extensions/kha/**/*-osx');
+			extensionsList.push('!extensions/kha/**/*-macos');
 		}
 		if (platform !== 'win32') {
-			extensionFiles.push('!extensions/kha/**/*.exe');
-			extensionFiles.push('!extensions/kha/**/*.dll');
+			extensionsList.push('!extensions/kha/**/*.exe');
+			extensionsList.push('!extensions/kha/**/*.dll');
 		}
 
 		const nlsFilter = filter('**/*.nls.json', { restore: true });
