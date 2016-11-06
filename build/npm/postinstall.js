@@ -43,7 +43,8 @@ const extensions = [
 	'jake',
 	'chrome-debug/core',
 	'chrome-debug',
-	'haxe'
+	'haxe',
+	'krom-debug'
 ];
 
 extensions.forEach(extension => npmInstall(`extensions/${extension}`));
