@@ -31,8 +31,6 @@ const extensions = [
 	'javascript',
 	'css',
 	'html',
-	'chrome-debug/core',
-	'chrome-debug',
 	'haxe'
 ];
 
