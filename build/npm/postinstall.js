@@ -18,7 +18,9 @@ const extensions = [
 	'javascript',
 	'css',
 	'html',
-	'haxe'
+	'haxe',
+	'chrome-debug',
+	'krom-debug'
 ];
 
 extensions.forEach(extension => {
