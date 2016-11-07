@@ -224,7 +224,8 @@ export class ConfigurationResolverService implements IConfigurationResolverServi
 					return TPromise.wrapError(nls.localize('interactiveVariableNotFound', "Interactive variable {0} is not contributed but is specified in a configuration.", interactiveVariable));
 				} else {
 					return this.commandService.executeCommand<string>(commandId, configuration).then(result => {
-						if (!result) {
+						if (!result && !commandId.startsWith('kha') && !commandId.startsWith('krom')) {
+							// TODO@Rob remove this hack hack after the hack is removed
 							// TODO@Isidor remove this hack
 							configuration.silentlyAbort = true;
 						}
