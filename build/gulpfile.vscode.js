@@ -239,13 +239,17 @@ function packageTask(platform, arch, opts) {
 		if (platform !== 'linux' || arch !== 'ia32') extensionsList.push('!extensions/kha/**/*-linux32');
 		if (platform !== 'linux' || arch !== 'x64') extensionsList.push('!extensions/kha/**/*-linux64');
 		if (platform !== 'linux' || arch !== 'arm') extensionsList.push('!extensions/kha/**/*-linuxarm');
+		if (platform !== 'linux') extensionsList.push('!extensions/krom/Krom/linux/**');
 		if (platform !== 'darwin') {
 			extensionsList.push('!extensions/kha/**/*-osx');
 			extensionsList.push('!extensions/kha/**/*-macos');
+			extensionsList.push('!extensions/krom/Krom/macos/**');
 		}
 		if (platform !== 'win32') {
 			extensionsList.push('!extensions/kha/**/*.exe');
 			extensionsList.push('!extensions/kha/**/*.dll');
+			extensionsList.push('!extensions/krom/Krom/win32/**');
+			extensionsList.push('!extensions/krom/Krom/windows/**');
 		}
 
 		const localExtensions = es.merge(...localExtensionDescriptions.map(extension => {
