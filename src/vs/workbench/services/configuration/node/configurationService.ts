@@ -258,19 +258,18 @@ export class WorkspaceConfigurationService implements IWorkspaceConfigurationSer
 			this.cachedWorkspaceKeys = workspaceConfigKeys;
 
 			// Override base (global < user) with workspace locals (global < user < workspace)
-			let merged = objects.mixin(
+			this.cachedConfig = objects.mixin(
 				objects.clone(this.baseConfigurationService.getConfiguration()), 	// target: global/default values (do NOT modify)
 				this.cachedWorkspaceConfig,											// source: workspace configured values
 				true																// overwrite
 			);
 
-			merged = this.mixinLaunchConfigs(merged);
+			this.cachedConfig = this.mixinLaunchConfigs(this.cachedConfig);
 
-			return merged;
-		}).then(result => {
-			this.cachedConfig = result;
-
-			return this.getConfiguration(section);
+			return {
+				consolidated: this.cachedConfig,
+				workspace: this.cachedWorkspaceConfig
+			};
 		});
 	}
 
