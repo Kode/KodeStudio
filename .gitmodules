@@ -1,28 +1,28 @@
 [submodule "extensions/haxe"]
 	path = extensions/haxe
-	url = ../vshaxe
+	url = https://github.com/Kode/vshaxe.git
 	branch = master
 [submodule "extensions/shader"]
 	path = extensions/shader
-	url = ../vscode-shader
+	url = https://github.com/Kode/vscode-shader.git
 	branch = master
 [submodule "extensions/chrome-debug"]
 	path = extensions/chrome-debug
-	url = ../vscode-chrome-debug
+	url = https://github.com/Kode/vscode-chrome-debug.git
 	branch = master
 [submodule "extensions/hxcpp-debug"]
 	path = extensions/hxcpp-debug
-	url = ../vscode-hxcpp-debug
+	url = https://github.com/Kode/vscode-hxcpp-debug.git
 	branch = master
 [submodule "extensions/kha"]
 	path = extensions/kha
-	url = ../vscode-kha
+	url = https://github.com/Kode/vscode-kha.git
 	branch = master
 [submodule "extensions/krom"]
 	path = extensions/krom
-	url = ../vscode-krom
+	url = https://github.com/Kode/vscode-krom.git
 	branch = master
 [submodule "extensions/krom-debug"]
 	path = extensions/krom-debug
-	url = ../vscode-krom-debug
+	url = https://github.com/Kode/vscode-krom-debug.git
 	branch = master
