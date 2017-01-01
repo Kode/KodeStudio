@@ -1,4 +1,4 @@
-Copyright (c) KTX Software Development
+Copyright (c) 2017 the Kode Studio development team
 
 All rights reserved.
 
