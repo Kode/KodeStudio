@@ -53,7 +53,7 @@ const tasks = compilations.map(function (tsconfigFile) {
 
 	const root = path.join('extensions', relativeDirname);
 	const srcBase = path.join(root, 'src');
-	const src = path.join(srcBase, '**');
+	const src = [path.join(srcBase, '**', '*.ts'), path.join(root, 'node_modules', '@types', '**', '*.ts')];
 	const out = path.join(root, 'out');
 	const i18n = path.join(__dirname, '..', 'i18n');
 	const baseUrl = getBaseUrl(out);
@@ -66,9 +66,9 @@ const tasks = compilations.map(function (tsconfigFile) {
 
 		return function () {
 			const input = es.through();
-			const tsFilter = filter(['**/*.ts', '!**/lib/lib*.d.ts', '!**/node_modules/**'], { restore: true });
+			//const tsFilter = filter(['**/*.ts', '!**/lib/lib*.d.ts', '!**/node_modules/**'], { restore: true });
 			const output = input
-				.pipe(tsFilter)
+				//.pipe(tsFilter)
 				.pipe(util.loadSourcemaps())
 				.pipe(compilation())
 				.pipe(build ? nlsDev.rewriteLocalizeCalls() : es.through())
@@ -79,7 +79,7 @@ const tasks = compilations.map(function (tsconfigFile) {
 					includeContent: !!build,
 					sourceRoot: '../src'
 				}))
-				.pipe(tsFilter.restore)
+				//.pipe(tsFilter.restore)
 				.pipe(build ? nlsDev.createAdditionalLanguageFiles(languages, i18n, out) : es.through())
 				.pipe(reporter.end(emitError));
 
