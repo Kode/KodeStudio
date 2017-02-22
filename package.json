@@ -4,7 +4,7 @@
   "electronVersion": "1.4.6",
   "distro": "8c3e97e3425cc9814496472ab73e076de2ba99ee",
   "author": {
-    "name": "KTX Software Development"
+    "name": "Kode Studio development team"
   },
   "main": "./out/main",
   "private": true,

@@ -101,8 +101,8 @@ const darwinCreditsTemplate = product.darwinCredits && _.template(fs.readFileSyn
 const config = {
 	version: packageJson.electronVersion,
 	productAppName: product.nameLong,
-	companyName: 'KTX Software Development',
-	copyright: 'Copyright (C) 2016 KTX Software Development. All rights reserved',
+	companyName: 'Kode Studio development team',
+	copyright: 'Copyright (C) 2017 the Kode Studio development team. All rights reserved',
 	darwinIcon: 'resources/darwin/code.icns',
 	darwinBundleIdentifier: product.darwinBundleIdentifier,
 	darwinApplicationCategoryType: 'public.app-category.developer-tools',
