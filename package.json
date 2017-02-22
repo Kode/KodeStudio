@@ -4,7 +4,7 @@
   "electronVersion": "1.6.6",
   "distro": "4bec0ed99ee450bfbefa4baf2433c6a032e88bd4",
   "author": {
-    "name": "Microsoft Corporation"
+    "name": "Kode Studio development team"
   },
   "main": "./out/main",
   "private": true,
