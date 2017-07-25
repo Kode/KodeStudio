@@ -4,14 +4,16 @@
 	"applicationName": "kodestudio",
 	"dataFolderName": ".kodestudio",
 	"win32MutexName": "kodestudio",
+	"licenseName": "MIT",
 	"licenseUrl": "https://github.com/Kode/KodeStudio/blob/master/LICENSE.txt",
 	"win32DirName": "Kode Studio",
-	"win32NameVersion": "Kode Studio",
+	"win32NameVersion": "KodeStudio",
 	"win32RegValueName": "KodeStudio",
-	"win32AppId": "{{E34003BB-9E10-4501-8C11-BE3FAA83F23F}",
+	"win32AppId": "{{ECE45C28-F38E-4259-8F3D-BCA7517D8A4B}",
 	"win32AppUserModelId": "KodeStudio",
+	"win32ShellNameShort": "K&ode",
 	"darwinBundleIdentifier": "org.kodestudio",
 	"reportIssueUrl": "https://github.com/Kode/KodeStudio/issues/new",
 	"urlProtocol": "code-oss",
-	"kodeStudioVersion": "17.1.0"
+	"kodeStudioVersion": "17.8.0"
 }
