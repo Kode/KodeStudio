@@ -20,6 +20,7 @@ export interface IProductConfiguration {
 	quality?: string;
 	commit: string;
 	date: string;
+	kodeStudioVersion: string;
 	extensionsGallery: {
 		serviceUrl: string;
 		itemUrl: string;
