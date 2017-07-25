@@ -94,19 +94,6 @@ export class GettingStarted implements IWorkbenchContribution {
 	}
 
 	private handleWelcome(): void {
-		//make sure the user is online, otherwise refer to the next run to show the welcome page
-		if (!navigator.onLine) {
-			return;
-		}
-
-		let firstStartup = !this.storageService.get(GettingStarted.hideWelcomeSettingskey);
-
-		if (firstStartup && this.welcomePageURL) {
-			this.telemetryService.getTelemetryInfo().then(info => {
-				let url = this.getUrl(info);
-				this.openExternal(url);
-				this.storageService.store(GettingStarted.hideWelcomeSettingskey, true);
-			});
-		}
+		
 	}
 }

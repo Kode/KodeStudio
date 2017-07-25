@@ -2079,7 +2079,7 @@ export const EDITOR_FONT_DEFAULTS = {
  */
 export const EDITOR_MODEL_DEFAULTS = {
 	tabSize: 4,
-	insertSpaces: true,
+	insertSpaces: false,
 	detectIndentation: true,
 	trimAutoWhitespace: true
 };
