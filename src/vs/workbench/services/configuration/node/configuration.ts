@@ -34,6 +34,8 @@ import { ExtensionsRegistry, ExtensionMessageCollector } from 'vs/platform/exten
 import { IConfigurationNode, IConfigurationRegistry, Extensions, editorConfigurationSchemaId, IDefaultConfigurationExtension, validateProperty, ConfigurationScope, schemaId } from 'vs/platform/configuration/common/configurationRegistry';
 import { createHash } from 'crypto';
 import { getWorkspaceLabel, IWorkspacesService } from "vs/platform/workspaces/common/workspaces";
+import * as fs from 'fs';
+import * as path from 'path';
 
 interface IStat {
 	resource: URI;
@@ -667,7 +669,52 @@ class FolderConfiguration<T> extends Disposable {
 
 		// on change: join on *all* configuration file promises so that we can merge them into a single configuration object. this
 		// happens whenever a config file changes, is deleted, or added
-		return this.bulkFetchFromWorkspacePromise.then(() => TPromise.join(this.workspaceFilePathToConfiguration));
+		return this.bulkFetchFromWorkspacePromise
+			.then(() => {
+				try {
+					if (fs.statSync(path.join(this.folder.fsPath, 'khafile.js')).isFile()) {
+						let exec = process.execPath;
+						if (exec.indexOf('Kode Studio Helper') >= 0) {
+							let dir = exec.substring(0, exec.lastIndexOf('/'));
+							exec = paths.join(dir, '..', '..', '..', '..', 'MacOS', 'Electron');
+						}
+						const config: any = {
+							launch: {
+								configurations: [
+									{
+										name: 'HTML5',
+										type: 'chrome',
+										request: 'launch',
+										file: 'build/debug-html5',
+										sourceMaps: true,
+										runtimeExecutable: exec,
+										kha: '${command.FindKha}',
+										ffmpeg: '${command.FindFFMPEG}',
+										cwd: this.folder.fsPath
+									},
+									{
+										name: 'Krom',
+										type: 'krom',
+										request: 'launch',
+										file: 'build/krom',
+										sourceMaps: true,
+										kha: '${command.FindKha}',
+										ffmpeg: '${command.FindFFMPEG}',
+										krom: '${command.FindKrom}',
+										cwd: this.folder.fsPath,
+										webRoot: '${workspaceRoot}/build/krom'
+									}
+								]
+							}
+						};
+						this.workspaceFilePathToConfiguration['.vscode/launch.json'] = TPromise.as(new ConfigurationModel<T>(config));
+					}
+				}
+				catch (error) {
+					console.error('Error creating launch configurations: ' + error);
+				}
+			})
+			.then(() => TPromise.join(this.workspaceFilePathToConfiguration));
 	}
 
 	public handleWorkspaceFileEvents(event: FileChangesEvent): TPromise<FolderConfigurationModel<T>> {
