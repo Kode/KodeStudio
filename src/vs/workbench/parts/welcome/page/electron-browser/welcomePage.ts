@@ -44,7 +44,7 @@ import { IWorkspaceIdentifier, getWorkspaceLabel, ISingleFolderWorkspaceIdentifi
 used();
 
 const configurationKey = 'workbench.startupEditor';
-const oldConfigurationKey = 'workbench.welcome.enabled';
+// const oldConfigurationKey = 'workbench.welcome.enabled';
 const telemetryFrom = 'welcomePage';
 
 export class WelcomePageContribution implements IWorkbenchContribution {
@@ -78,14 +78,7 @@ export class WelcomePageContribution implements IWorkbenchContribution {
 }
 
 function isWelcomePageEnabled(configurationService: IConfigurationService) {
-	const startupEditor = configurationService.lookup(configurationKey);
-	if (!startupEditor.user && !startupEditor.workspace) {
-		const welcomeEnabled = configurationService.lookup(oldConfigurationKey);
-		if (welcomeEnabled.value !== undefined && welcomeEnabled.value !== null) {
-			return welcomeEnabled.value;
-		}
-	}
-	return startupEditor.value === 'welcomePage';
+	return false;
 }
 
 export class WelcomePageAction extends Action {
