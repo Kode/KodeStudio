@@ -710,9 +710,7 @@ class FolderConfiguration<T> extends Disposable {
 						this.workspaceFilePathToConfiguration['.vscode/launch.json'] = TPromise.as(new ConfigurationModel<T>(config));
 					}
 				}
-				catch (error) {
-					console.error('Error creating launch configurations: ' + error);
-				}
+				catch (error) { }
 			})
 			.then(() => TPromise.join(this.workspaceFilePathToConfiguration));
 	}
