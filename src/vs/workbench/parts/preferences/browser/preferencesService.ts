@@ -51,6 +51,8 @@ interface IWorkbenchSettingsConfiguration {
 	};
 }
 
+const emptyEditableSettingsContent = '{\n}';
+
 export class PreferencesService extends Disposable implements IPreferencesService {
 
 	_serviceBrand: any;
@@ -133,7 +135,7 @@ export class PreferencesService extends Disposable implements IPreferencesServic
 			promise = TPromise.join<any>([this.extensionService.onReady(), this.fetchMostCommonlyUsedSettings()])
 				.then(result => {
 					const mostCommonSettings = result[1];
-					const model = this.instantiationService.createInstance(DefaultSettingsEditorModel, uri, mostCommonSettings, ConfigurationScope.WORKBENCH);
+					const model = this.instantiationService.createInstance(DefaultSettingsEditorModel, uri, mostCommonSettings, ConfigurationScope.WINDOW);
 					return model;
 				});
 			this.defaultPreferencesEditorModels.set(uri, promise);
@@ -299,22 +301,10 @@ export class PreferencesService extends Disposable implements IPreferencesServic
 					const model = reference.object.textEditorModel;
 					const settingsContent = WorkspaceConfigModel.getSettingsContentFromConfigContent(model.getValue());
 					reference.dispose();
-					return TPromise.as(settingsContent ? settingsContent : this.getEmptyEditableSettingsContent(ConfigurationTarget.WORKSPACE));
+					return TPromise.as(settingsContent ? settingsContent : emptyEditableSettingsContent);
 				});
 		}
 		return TPromise.as(null);
-	}
-
-	private getEmptyEditableSettingsContent(target: ConfigurationTarget): string {
-		if (target === ConfigurationTarget.USER) {
-			const emptySettingsHeader = nls.localize('emptySettingsHeader', "Place your settings in this file to overwrite the default settings");
-			return '// ' + emptySettingsHeader + '\n{\n}';
-		}
-		return [
-			'// ' + nls.localize('emptySettingsHeader1', "Place your settings in this file to overwrite default and user settings."),
-			'{',
-			'}'
-		].join('\n');
 	}
 
 	private getEditableSettingsURI(configurationTarget: ConfigurationTarget, resource?: URI): URI {
@@ -327,7 +317,7 @@ export class PreferencesService extends Disposable implements IPreferencesServic
 					return this.toResource(paths.join('.vscode', 'settings.json'), workspace.roots[0]);
 				}
 				if (this.contextService.hasMultiFolderWorkspace()) {
-					return this.workspaceConfigSettingsResource;
+					return workspace.configuration;
 				}
 				return null;
 			case ConfigurationTarget.FOLDER:
@@ -343,10 +333,11 @@ export class PreferencesService extends Disposable implements IPreferencesServic
 
 	private createSettingsIfNotExists(target: ConfigurationTarget, resource: URI): TPromise<void> {
 		if (this.contextService.hasMultiFolderWorkspace() && target === ConfigurationTarget.WORKSPACE) {
-			return TPromise.as(null);
+			if (!this.configurationService.keys().workspace.length) {
+				return this.jsonEditingService.write(resource, { key: 'settings', value: {} }, true).then(null, () => { });
+			}
 		}
-		const editableSettingsEmptyContent = this.getEmptyEditableSettingsContent(target);
-		return this.createIfNotExists(resource, editableSettingsEmptyContent).then(() => { });
+		return this.createIfNotExists(resource, emptyEditableSettingsContent).then(() => { });
 	}
 
 	private createIfNotExists(resource: URI, contents: string): TPromise<boolean> {

@@ -598,7 +598,7 @@ export class DefaultSettingsEditorModel extends AbstractSettingsModel implements
 	private _content: string;
 	private _contentByLines: string[];
 
-	constructor(private _uri: URI, private _mostCommonlyUsedSettingsKeys: string[], private configurationScope: ConfigurationScope) {
+	constructor(private _uri: URI, private _mostCommonlyUsedSettingsKeys: string[], readonly configurationScope: ConfigurationScope) {
 		super();
 	}
 
@@ -751,7 +751,7 @@ export class DefaultSettingsEditorModel extends AbstractSettingsModel implements
 	}
 
 	private matchesScope(property: IConfigurationNode): boolean {
-		if (this.configurationScope === ConfigurationScope.WORKBENCH) {
+		if (this.configurationScope === ConfigurationScope.WINDOW) {
 			return true;
 		}
 		return property.scope === this.configurationScope;

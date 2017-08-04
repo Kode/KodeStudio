@@ -8,8 +8,10 @@
 
 	const ipcRenderer = require('electron').ipcRenderer;
 
-
+	// state
 	var firstLoad = true;
+	var loadTimeout;
+	var pendingMessages = [];
 
 	const initData = {
 		initialScrollProgress: undefined
@@ -160,18 +162,15 @@
 			var setInitialScrollPosition;
 			if (firstLoad) {
 				firstLoad = false;
-				setInitialScrollPosition = function (body, window) {
-					body.scrollTop = 0;
+				setInitialScrollPosition = function (body) {
 					if (!isNaN(initData.initialScrollProgress)) {
-						window.addEventListener('load', function () {
-							if (body.scrollTop === 0) {
-								body.scrollTop = body.clientHeight * initData.initialScrollProgress;
-							}
-						});
+						if (body.scrollTop === 0) {
+							body.scrollTop = body.clientHeight * initData.initialScrollProgress;
+						}
 					}
 				};
 			} else {
-				const scrollY = frame.contentDocument && frame.contentDocument.body ? frame.contentDocument.body.scrollTop : 0;
+				const scrollY = frame && frame.contentDocument && frame.contentDocument.body ? frame.contentDocument.body.scrollTop : 0;
 				setInitialScrollPosition = function (body) {
 					if (body.scrollTop === 0) {
 						body.scrollTop = scrollY;
@@ -185,12 +184,13 @@
 				previousPendingFrame.setAttribute('id', '');
 				document.body.removeChild(previousPendingFrame);
 			}
+			pendingMessages = [];
 
 			const newFrame = document.createElement('iframe');
 			newFrame.setAttribute('id', 'pending-frame');
 			newFrame.setAttribute('frameborder', '0');
 			newFrame.setAttribute('sandbox', options.allowScripts ? 'allow-scripts allow-forms allow-same-origin' : 'allow-same-origin');
-			newFrame.style.cssText = "margin: 0; overflow: hidden; position: absolute; width: 100%; height: 100%; display: none";
+			newFrame.style.cssText = "display: block; margin: 0; overflow: hidden; position: absolute; width: 100%; height: 100%; visibility: hidden";
 			document.body.appendChild(newFrame);
 
 			// write new content onto iframe
@@ -200,13 +200,11 @@
 				return false;
 			};
 
-			newFrame.contentWindow.addEventListener('DOMContentLoaded', function (e) {
-				/** @type {any} */
-				const contentDocument = e.target;
+			var onLoad = function (contentDocument, contentWindow) {
 				if (contentDocument.body) {
 					// Workaround for https://github.com/Microsoft/vscode/issues/12865
 					// check new scrollTop and reset if neccessary
-					setInitialScrollPosition(contentDocument.body, this);
+					setInitialScrollPosition(contentDocument.body);
 
 					// Bubble out link clicks
 					contentDocument.body.addEventListener('click', handleInnerClick);
@@ -219,8 +217,29 @@
 						document.body.removeChild(oldActiveFrame);
 					}
 					newFrame.setAttribute('id', 'active-frame');
-					newFrame.style.display = 'block';
-					this.addEventListener('scroll', handleInnerScroll);
+					newFrame.style.visibility = 'visible';
+					contentWindow.addEventListener('scroll', handleInnerScroll);
+
+					pendingMessages.forEach(function(data) {
+						contentWindow.postMessage(data, document.location.origin);
+					});
+					pendingMessages = [];
+				}
+			};
+
+			clearTimeout(loadTimeout);
+			loadTimeout = undefined;
+			loadTimeout = setTimeout(function () {
+				clearTimeout(loadTimeout);
+				loadTimeout = undefined;
+				onLoad(newFrame.contentDocument, newFrame.contentWindow);
+			}, 200);
+
+			newFrame.contentWindow.addEventListener('load', function (e) {
+				if (loadTimeout) {
+					clearTimeout(loadTimeout);
+					loadTimeout = undefined;
+					onLoad(e.target, this);
 				}
 			});
 
@@ -235,9 +254,14 @@
 
 		// Forward message to the embedded iframe
 		ipcRenderer.on('message', function (event, data) {
-			const target = getActiveFrame();
-			if (target) {
-				target.contentWindow.postMessage(data, document.location.origin);
+			const pending = getPendingFrame();
+			if (pending) {
+				pendingMessages.push(data);
+			} else {
+				const target = getActiveFrame();
+				if (target) {
+					target.contentWindow.postMessage(data, document.location.origin);
+				}
 			}
 		});
 

@@ -8,6 +8,7 @@ import { dispose, IDisposable } from 'vs/base/common/lifecycle';
 import Event, { Emitter } from 'vs/base/common/event';
 import { TPromise } from 'vs/base/common/winjs.base';
 import * as strings from 'vs/base/common/strings';
+import { first } from 'vs/base/common/arrays';
 import { isLinux, isMacintosh, isWindows } from 'vs/base/common/platform';
 import * as objects from 'vs/base/common/objects';
 import uri from 'vs/base/common/uri';
@@ -16,6 +17,7 @@ import * as paths from 'vs/base/common/paths';
 import { IJSONSchema } from 'vs/base/common/jsonSchema';
 import { IModel, isCommonCodeEditor } from 'vs/editor/common/editorCommon';
 import { IEditor } from 'vs/platform/editor/common/editor';
+import { ILifecycleService } from 'vs/platform/lifecycle/common/lifecycle';
 import { IStorageService, StorageScope } from 'vs/platform/storage/common/storage';
 import * as extensionsRegistry from 'vs/platform/extensions/common/extensionsRegistry';
 import { Registry } from 'vs/platform/registry/common/platform';
@@ -206,6 +208,8 @@ const jsonRegistry = <IJSONContributionRegistry>Registry.as(JSONExtensions.JSONC
 jsonRegistry.registerSchema(schemaId, schema);
 const DEBUG_SELECTED_CONFIG_NAME_KEY = 'debug.selectedconfigname';
 const DEBUG_SELECTED_ROOT = 'debug.selectedroot';
+const DEBUG_CONFIG_MRU = 'debug.configmru';
+const MRU_SIZE = 5;
 
 export class ConfigurationManager implements IConfigurationManager {
 	private adapters: Adapter[];
@@ -215,6 +219,7 @@ export class ConfigurationManager implements IConfigurationManager {
 	private _selectedLaunch: ILaunch;
 	private toDispose: IDisposable[];
 	private _onDidSelectConfigurationName = new Emitter<void>();
+	private _mru: { launch: ILaunch, name: string }[];
 
 	constructor(
 		@IWorkspaceContextService private contextService: IWorkspaceContextService,
@@ -226,17 +231,38 @@ export class ConfigurationManager implements IConfigurationManager {
 		@IConfigurationResolverService private configurationResolverService: IConfigurationResolverService,
 		@IInstantiationService private instantiationService: IInstantiationService,
 		@ICommandService private commandService: ICommandService,
-		@IStorageService private storageService: IStorageService
+		@IStorageService private storageService: IStorageService,
+		@ILifecycleService lifecycleService: ILifecycleService,
 	) {
 		this.adapters = [];
 		this.toDispose = [];
-		this.registerListeners();
+		this.registerListeners(lifecycleService);
 		this.initLaunches();
-		// TODO@isidor select the appropriate Launch
-		this.selectConfiguration(this.launches.length ? this.launches[0] : undefined, this.storageService.get(DEBUG_SELECTED_CONFIG_NAME_KEY, StorageScope.WORKSPACE, null));
+		const previousSelectedRoot = this.storageService.get(DEBUG_SELECTED_ROOT, StorageScope.WORKSPACE);
+		const filtered = this.launches.filter(l => l.workspaceUri.toString() === previousSelectedRoot);
+		const launchToSelect = filtered.length ? filtered[0] : this.launches.length ? this.launches[0] : undefined;
+		this.selectConfiguration(launchToSelect, this.storageService.get(DEBUG_SELECTED_CONFIG_NAME_KEY, StorageScope.WORKSPACE));
+
+		this._mru = [];
+		const mruRaw: { name: string, uriStr: string }[] = JSON.parse(this.storageService.get(DEBUG_CONFIG_MRU, StorageScope.WORKSPACE, '[]'));
+		mruRaw.forEach(raw => {
+			const launch = this.launches.filter(l => l.workspaceUri.toString() === raw.uriStr).pop();
+			if (launch) {
+				this._mru.push({ name, launch });
+			}
+		});
+		if (this._mru.length < MRU_SIZE) {
+			this.launches.forEach(launch => {
+				launch.getConfigurationNames().forEach(name => {
+					if (this._mru.length < MRU_SIZE && this._mru.indexOf({ name, launch }) === -1) {
+						this._mru.push({ name, launch });
+					}
+				});
+			});
+		}
 	}
 
-	private registerListeners(): void {
+	private registerListeners(lifecycleService: ILifecycleService): void {
 		debuggersExtPoint.setHandler((extensions) => {
 			extensions.forEach(extension => {
 				extension.value.forEach(rawAdapter => {
@@ -281,13 +307,15 @@ export class ConfigurationManager implements IConfigurationManager {
 		});
 
 		this.toDispose.push(this.contextService.onDidChangeWorkspaceRoots(() => {
+			this.initLaunches();
 		}));
 
 		this.toDispose.push(this.configurationService.onDidUpdateConfiguration((event) => {
-			if (event.sourceConfig) {
-				// TODO@Isidor react on user changing the launch.json
-			}
+			const toSelect = this.selectedLaunch && this.selectedLaunch.getConfigurationNames().length ? this.selectedLaunch : first(this.launches, l => !!l.getConfigurationNames().length, this.selectedLaunch);
+			this.selectConfiguration(toSelect);
 		}));
+
+		this.toDispose.push(lifecycleService.onShutdown(this.store, this));
 	}
 
 	private initLaunches(): void {
@@ -311,16 +339,35 @@ export class ConfigurationManager implements IConfigurationManager {
 		return this._onDidSelectConfigurationName.event;
 	}
 
-	public selectConfiguration(launch: ILaunch, name?: string): void {
+	public get mruConfigs(): { name: string, launch: ILaunch }[] {
+		return this._mru;
+	}
+
+	public selectConfiguration(launch: ILaunch, name?: string, debugStarted?: boolean): void {
+		const previousLaunch = this._selectedLaunch;
+		const previousName = this._selectedName;
+
 		this._selectedLaunch = launch;
-		if (name) {
+		const names = launch ? launch.getConfigurationNames() : [];
+		if (name && names.indexOf(name) >= 0) {
 			this._selectedName = name;
 		}
-		this.storageService.store(DEBUG_SELECTED_CONFIG_NAME_KEY, this.selectedName, StorageScope.WORKSPACE);
-		if (launch) {
-			this.storageService.store(DEBUG_SELECTED_ROOT, this.contextService.getRoot(launch.uri).toString(), StorageScope.WORKSPACE);
+		if (names.indexOf(this.selectedName) === -1) {
+			this._selectedName = names.length ? names[0] : undefined;
 		}
-		this._onDidSelectConfigurationName.fire();
+
+		if (debugStarted && this._selectedLaunch && this._selectedName) {
+			this._mru = this._mru.filter(entry => entry.launch.workspaceUri !== launch.workspaceUri || entry.name !== name);
+			this._mru.unshift({ launch, name });
+
+			if (this._mru.length > MRU_SIZE) {
+				this._mru.pop();
+			}
+		}
+
+		if (this.selectedLaunch !== previousLaunch || this.selectedName !== previousName) {
+			this._onDidSelectConfigurationName.fire();
+		}
 	}
 
 	public canSetBreakpointsIn(model: IModel): boolean {
@@ -383,12 +430,22 @@ export class ConfigurationManager implements IConfigurationManager {
 		});
 	}
 
+	private store(): void {
+		this.storageService.store(DEBUG_CONFIG_MRU, JSON.stringify(this._mru.map(entry => ({ name: entry.name, uri: entry.launch.uri }))), StorageScope.WORKSPACE);
+		this.storageService.store(DEBUG_SELECTED_CONFIG_NAME_KEY, this.selectedName, StorageScope.WORKSPACE);
+		if (this._selectedLaunch) {
+			this.storageService.store(DEBUG_SELECTED_ROOT, this._selectedLaunch.workspaceUri.toString(), StorageScope.WORKSPACE);
+		}
+	}
+
 	public dispose(): void {
 		this.toDispose = dispose(this.toDispose);
 	}
 }
 
 class Launch implements ILaunch {
+
+	public name: string;
 
 	constructor(
 		private configurationManager: ConfigurationManager,
@@ -398,6 +455,7 @@ class Launch implements ILaunch {
 		@IConfigurationService private configurationService: IConfigurationService,
 		@IConfigurationResolverService private configurationResolverService: IConfigurationResolverService,
 	) {
+		this.name = paths.basename(this.workspaceUri.fsPath);
 	}
 
 	public getCompound(name: string): ICompound {
