@@ -685,7 +685,8 @@ class FolderConfiguration<T> extends Disposable {
 							let dir = exec.substring(0, exec.lastIndexOf('/'));
 							exec = paths.join(dir, '..', '..', '..', '..', 'MacOS', 'Electron');
 						}
-						const config: any = {
+
+						const launchConfig: any = {
 							launch: {
 								configurations: [
 									{
@@ -693,6 +694,7 @@ class FolderConfiguration<T> extends Disposable {
 										type: 'chrome',
 										request: 'launch',
 										file: 'build/debug-html5',
+										preLaunchTask: 'compileDebugHtml5',
 										sourceMaps: true,
 										runtimeExecutable: exec,
 										kha: '${command.FindKha}',
@@ -704,6 +706,7 @@ class FolderConfiguration<T> extends Disposable {
 										type: 'krom',
 										request: 'launch',
 										file: 'build/krom',
+										preLaunchTask: 'compileKrom',
 										sourceMaps: true,
 										kha: '${command.FindKha}',
 										ffmpeg: '${command.FindFFMPEG}',
@@ -714,7 +717,31 @@ class FolderConfiguration<T> extends Disposable {
 								]
 							}
 						};
-						this.workspaceFilePathToConfiguration['.vscode/launch.json'] = TPromise.as(new ConfigurationModel<T>(config));
+						this.workspaceFilePathToConfiguration['.vscode/launch.json'] = TPromise.as(new ConfigurationModel<T>(launchConfig));
+
+						const tasksConfig: any = {
+							tasks: {
+								tasks: [
+									{
+										taskName: 'compileDebugHtml5',
+										type: 'shell',
+										command: 'node',
+										args: ['Kha/make', 'debug-html5'],
+										focus: true,
+										group: 'build'
+									},
+									{
+										taskName: 'compileKrom',
+										type: 'shell',
+										command: 'node',
+										args: ['Kha/make', 'krom'],
+										focus: true,
+										group: 'build'
+									}
+								]
+							}
+						};
+						this.workspaceFilePathToConfiguration['.vscode/tasks.json'] = TPromise.as(new ConfigurationModel<T>(tasksConfig));
 					}
 				}
 				catch (error) { }
