@@ -1206,7 +1206,7 @@ class TaskService extends EventEmitter implements ITaskService {
 						if (active.background) {
 							this.messageService.show(Severity.Info, nls.localize('TaskSystem.activeSame.background', 'The task \'{0}\' is already active and in background mode. To terminate it use `Terminate Task...` from the Tasks menu.', task._label));
 						} else {
-							this.messageService.show(Severity.Info, nls.localize('TaskSystem.activeSame.noBackground', 'The task \'{0}\' is already active. To terminate it use `Terminate Task...` from the Tasks menu.'));
+							this.messageService.show(Severity.Info, nls.localize('TaskSystem.activeSame.noBackground', 'The task \'{0}\' is already active. To terminate it use `Terminate Task...` from the Tasks menu.', task._label));
 						}
 					} else {
 						throw new TaskError(Severity.Warning, nls.localize('TaskSystem.active', 'There is already a task running. Terminate it first before executing another task.'), TaskErrors.RunningTask);
@@ -1750,7 +1750,7 @@ class TaskService extends EventEmitter implements ITaskService {
 		if (!this.canRunCommand()) {
 			return;
 		}
-		if (!this.inTerminal()) {
+		if (this.getJsonSchemaVersion() === JsonSchemaVersion.V0_1_0) {
 			this.build();
 			return;
 		}
@@ -1793,7 +1793,7 @@ class TaskService extends EventEmitter implements ITaskService {
 		if (!this.canRunCommand()) {
 			return;
 		}
-		if (!this.inTerminal()) {
+		if (this.getJsonSchemaVersion() === JsonSchemaVersion.V0_1_0) {
 			this.runTest();
 			return;
 		}
@@ -1899,7 +1899,7 @@ class TaskService extends EventEmitter implements ITaskService {
 		if (!this.canRunCommand()) {
 			return;
 		}
-		if (this.inTerminal()) {
+		if (this.getJsonSchemaVersion() === JsonSchemaVersion.V2_0_0) {
 			this.tasks().then((tasks => {
 				if (tasks.length === 0) {
 					this.configureBuildTask().run();
@@ -1932,7 +1932,7 @@ class TaskService extends EventEmitter implements ITaskService {
 		if (!this.canRunCommand()) {
 			return;
 		}
-		if (this.inTerminal()) {
+		if (this.getJsonSchemaVersion() === JsonSchemaVersion.V2_0_0) {
 			this.tasks().then((tasks => {
 				if (tasks.length === 0) {
 					this.configureAction().run();

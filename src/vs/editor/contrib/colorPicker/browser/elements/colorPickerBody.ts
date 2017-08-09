@@ -9,7 +9,7 @@ import { Disposable } from "vs/base/common/lifecycle";
 import { ColorPickerModel, ISaturationState } from "vs/editor/contrib/colorPicker/browser/colorPickerModel";
 import { GlobalMouseMoveMonitor, IStandardMouseMoveEventData, standardMouseMoveMerger } from "vs/base/browser/globalMouseMoveMonitor";
 import { isWindows } from "vs/base/common/platform";
-import { Color, RGBA } from "vs/base/common/color";
+import { Color, RGBA, HSVA } from "vs/base/common/color";
 const $ = dom.$;
 const MOUSE_DRAG_RESET_DISTANCE = 140;
 
@@ -41,11 +41,7 @@ export class ColorPickerBody extends Disposable {
 	}
 
 	public fillOpacityOverlay(color: Color): void {
-		const c = color.toRGBA();
-		const r = c.r;
-		const g = c.g;
-		const b = c.b;
-
+		const { r, g, b } = color.rgba;
 		this.opacityOverlay.style.background = `linear-gradient(to bottom, rgba(${r}, ${g}, ${b}, 1) 0%, rgba(${r}, ${g}, ${b}, 0) 100%)`;
 	}
 
@@ -72,8 +68,8 @@ export class ColorPickerBody extends Disposable {
 		}
 
 		const updateModel = (x: number, y: number) => {
-			const saturationRGBA = this.saturationBox.extractColor(x, y).toRGBA();
-			this.widget.model.color = Color.fromRGBA(new RGBA(saturationRGBA.r, saturationRGBA.g, saturationRGBA.b, this.widget.model.opacity * 255)); // TODO@Michel store opacity in [0-255] instead
+			const { r, g, b } = this.saturationBox.extractColor(x, y).rgba;
+			this.widget.model.color = new Color(new RGBA(r, g, b, this.widget.model.opacity * 255)); // TODO@Michel store opacity in [0-255] instead
 			this.saturationBox.focusSaturationSelection({ x: x, y: y });
 		};
 
@@ -166,7 +162,7 @@ export class ColorPickerBody extends Disposable {
 
 		this.hueSlider = new Slider(this.hueStrip);
 		dom.append(this.hueStrip, this.hueSlider.domNode);
-		this.hueSlider.top = (this.hueStrip.offsetHeight - this.hueSlider.domNode.offsetHeight) * (this.model.color.getHue() / 359);
+		this.hueSlider.top = (this.hueStrip.offsetHeight - this.hueSlider.domNode.offsetHeight) * (this.model.color.hsla.h / 359);
 	}
 
 	private calculateSliderHue(slider: Slider): number {
@@ -235,7 +231,7 @@ export class SaturationBox {
 	}
 
 	public fillSaturationBox(): void {
-		this.saturationCtx.fillStyle = this.calculateHueColor(this.model.hue).toString();
+		this.saturationCtx.fillStyle = Color.Format.CSS.format(this.calculateHueColor(this.model.hue));
 		this.saturationCtx.fill();
 		this.saturationCtx.fillStyle = this.whiteGradient;
 		this.saturationCtx.fill();
@@ -244,7 +240,7 @@ export class SaturationBox {
 
 		// Update selected color if saturation selection was beforehand
 		if (this.model.saturationSelection) {
-			const newColor = Color.fromHSV(this.model.hue, this.model.saturation, this.model.value, this.model.opacity * 255);
+			const newColor = new Color(new HSVA(this.model.hue, this.model.saturation, this.model.value, this.model.opacity * 255));
 			this.model.color = newColor;
 		}
 	}
@@ -271,8 +267,8 @@ export class SaturationBox {
 		const opacityX = 1 - (offsetX / this.domNode.offsetWidth);
 		const opacityY = offsetY / this.domNode.offsetHeight;
 
-		const whiteGradientColor = Color.fromRGBA(new RGBA(255, 255, 255, opacityX * 255));
-		const blackGradientColor = Color.fromRGBA(new RGBA(0, 0, 0, opacityY * 255));
+		const whiteGradientColor = new Color(new RGBA(255, 255, 255, opacityX * 255));
+		const blackGradientColor = new Color(new RGBA(0, 0, 0, opacityY * 255));
 
 		const gradientsMix = blackGradientColor.blend(whiteGradientColor);
 		return gradientsMix.blend(this.calculateHueColor(this.model.hue));
@@ -307,7 +303,7 @@ export class SaturationBox {
 		g = Math.round(g * 255);
 		b = Math.round(b * 255);
 
-		return Color.fromRGBA(new RGBA(r, g, b));
+		return new Color(new RGBA(r, g, b));
 	}
 }
 

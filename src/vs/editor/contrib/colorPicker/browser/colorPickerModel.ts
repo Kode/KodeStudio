@@ -50,21 +50,21 @@ export class ColorPickerModel {
 		this._opaqueFormatter = opaqueFormatter;
 		this.colorFormatters = availableFormatters;
 		this.color = color;
-		this.hue = color.getHue();
-		this.saturation = color.getSaturation();
-		this.value = color.getValue();
+		this.hue = color.hsla.h;
+		this.saturation = color.hsla.s;
+		this.value = color.hsva.v;
 		this._colorRange = new Range(range.startLineNumber, range.startColumn, range.endLineNumber, range.endColumn);
 	}
 
 	public set color(color: Color) {
 		this._color = color;
 
-		const alpha = color.toRGBA().a;
+		const alpha = color.rgba.a;
 		if (!this._opacity) {
 			this._opacity = alpha / 255;
 		}
-		this.saturation = color.getSaturation();
-		this.value = color.getValue();
+		this.saturation = color.hsla.s;
+		this.value = color.hsva.v;
 
 		if (this._opacity === 1) {
 			this.selectedColorString = this._opaqueFormatter.toString(this._color);
@@ -118,8 +118,8 @@ export class ColorPickerModel {
 	public set opacity(opacity: number) {
 		this._opacity = opacity;
 
-		const rgba = this._color.toRGBA();
-		this.color = Color.fromRGBA(new RGBA(rgba.r, rgba.g, rgba.b, opacity * 255));
+		const rgba = this._color.rgba;
+		this.color = new Color(new RGBA(rgba.r, rgba.g, rgba.b, opacity * 255));
 
 		if (this.widget.header) {
 			this.widget.header.updatePickedColor();
@@ -179,7 +179,7 @@ export class ColorPickerModel {
 		g = Math.round(g * 255);
 		b = Math.round(b * 255);
 
-		return Color.fromRGBA(new RGBA(r, g, b));
+		return new Color(new RGBA(r, g, b));
 	}
 }
 
