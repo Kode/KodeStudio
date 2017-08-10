@@ -501,7 +501,9 @@ export class WorkspaceServiceImpl extends WorkspaceService {
 
 	private initCachesForFolders(folders: URI[]): void {
 		for (const folder of folders) {
-			this.cachedFolderConfigs.set(folder, this._register(new FolderConfiguration(folder, this.workspaceSettingsRootFolder, this.hasMultiFolderWorkspace() ? ConfigurationScope.RESOURCE : ConfigurationScope.WINDOW)));
+			const configKhaPath = this._configuration.user.contents.kha ? this._configuration.user.contents.kha.khaPath : '';
+			const extensionKhaPath = ''; // TODO
+			this.cachedFolderConfigs.set(folder, this._register(new FolderConfiguration(configKhaPath, extensionKhaPath, folder, this.workspaceSettingsRootFolder, this.hasMultiFolderWorkspace() ? ConfigurationScope.RESOURCE : ConfigurationScope.WINDOW)));
 			this.updateFolderConfiguration(folder, new FolderConfigurationModel<any>(new FolderSettingsModel<any>(null), [], ConfigurationScope.RESOURCE), false);
 		}
 	}
@@ -635,11 +637,22 @@ class FolderConfiguration<T> extends Disposable {
 	private reloadConfigurationScheduler: RunOnceScheduler;
 	private reloadConfigurationEventEmitter: Emitter<FolderConfigurationModel<T>> = new Emitter<FolderConfigurationModel<T>>();
 
-	constructor(private folder: URI, private configFolderRelativePath: string, private scope: ConfigurationScope) {
+	constructor(private configKhaPath: string, private extensionKhaPath: string, private folder: URI, private configFolderRelativePath: string, private scope: ConfigurationScope) {
 		super();
 
 		this.workspaceFilePathToConfiguration = Object.create(null);
 		this.reloadConfigurationScheduler = this._register(new RunOnceScheduler(() => this.loadConfiguration().then(configuration => this.reloadConfigurationEventEmitter.fire(configuration), errors.onUnexpectedError), FolderConfiguration.RELOAD_CONFIGURATION_DELAY));
+	}
+
+	private findKha(workspacePath: string): string {
+		let localkhapath = path.resolve(workspacePath, 'Kha');
+		if (fs.existsSync(localkhapath)) {
+			return localkhapath;
+		}
+		if (this.configKhaPath.length > 0) {
+			return this.configKhaPath;
+		}
+		return this.extensionKhaPath;
 	}
 
 	loadConfiguration(): TPromise<FolderConfigurationModel<T>> {
@@ -724,17 +737,17 @@ class FolderConfiguration<T> extends Disposable {
 								tasks: [
 									{
 										taskName: 'compileDebugHtml5',
-										type: 'shell',
-										command: 'node',
-										args: ['Kha/make', 'debug-html5'],
+										type: 'node',
+										command: path.join(this.findKha(this.folder.fsPath), 'make.js'),
+										args: ['debug-html5'],
 										focus: true,
 										group: 'build'
 									},
 									{
 										taskName: 'compileKrom',
-										type: 'shell',
-										command: 'node',
-										args: ['Kha/make', 'krom'],
+										type: 'node',
+										command: path.join(this.findKha(this.folder.fsPath), 'make.js'),
+										args: ['krom'],
 										focus: true,
 										group: 'build'
 									}

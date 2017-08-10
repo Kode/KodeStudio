@@ -155,7 +155,7 @@ export abstract class AbstractProcess<TProgressData> {
 	}
 
 	public getSanitizedCommand(): string {
-		let result = this.cmd.toLowerCase();
+		let result = this.cmd ? this.cmd.toLowerCase() : this.module.toLowerCase();
 		let index = result.lastIndexOf(path.sep);
 		if (index !== -1) {
 			result = result.substring(index + 1);

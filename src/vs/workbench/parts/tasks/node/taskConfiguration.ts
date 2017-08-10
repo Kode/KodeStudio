@@ -776,7 +776,7 @@ namespace CommandConfiguration {
 			result.name = config.command;
 		}
 		if (Types.isString(config.type)) {
-			if (config.type === 'shell' || config.type === 'process') {
+			if (config.type === 'shell' || config.type === 'process' || config.type === 'node') {
 				result.runtime = Tasks.RuntimeType.fromString(config.type);
 			}
 		}
@@ -1197,7 +1197,7 @@ namespace CustomTask {
 		if (type === void 0 || type === null) {
 			type = 'custom';
 		}
-		if (type !== 'custom' && type !== 'shell' && type !== 'process') {
+		if (type !== 'custom' && type !== 'shell' && type !== 'process' && type !== 'node') {
 			context.problemReporter.fatal(nls.localize('ConfigurationParser.notCustom', 'Error: tasks is not declared as a custom task. The configuration will be ignored.\n{0}\n', JSON.stringify(external, null, 4)));
 			return undefined;
 		}
@@ -1318,7 +1318,7 @@ namespace TaskParser {
 	function isCustomTask(value: CustomTask | ConfiguringTask): value is CustomTask {
 		let type = value.type;
 		let customize = (value as any).customize;
-		return customize === void 0 && (type === void 0 || type === null || type === 'custom' || type === 'shell' || type === 'process');
+		return customize === void 0 && (type === void 0 || type === null || type === 'custom' || type === 'shell' || type === 'process' || type === 'node');
 	}
 
 	export function from(this: void, externals: (CustomTask | ConfiguringTask)[], globals: Globals, context: ParseContext): TaskParseResult {
@@ -1563,7 +1563,19 @@ export namespace ExecutionEngine {
 		if (schemaVersion === Tasks.JsonSchemaVersion.V0_1_0) {
 			return result || Tasks.ExecutionEngine.Process;
 		} else if (schemaVersion === Tasks.JsonSchemaVersion.V2_0_0) {
-			return Tasks.ExecutionEngine.Terminal;
+			let containsNodeTask = false;
+			for (let task of config.tasks) {
+				if (task.type === 'node') {
+					containsNodeTask = true;
+					break;
+				}
+			}
+			if (containsNodeTask) {
+				return Tasks.ExecutionEngine.Process;
+			}
+			else {
+				return Tasks.ExecutionEngine.Terminal;
+			}
 		} else {
 			throw new Error('Shouldn\'t happen.');
 		}
