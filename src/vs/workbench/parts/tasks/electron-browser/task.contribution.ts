@@ -712,6 +712,13 @@ class TaskService extends EventEmitter implements ITaskService {
 			this.runTaskCommand(accessor, arg);
 		});
 
+		KeybindingsRegistry.registerKeybindingRule({
+			id: 'workbench.action.tasks.runTask',
+			weight: KeybindingsRegistry.WEIGHT.workbenchContrib(),
+			when: undefined,
+			primary: KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KEY_T
+		});
+
 		CommandsRegistry.registerCommand('workbench.action.tasks.restartTask', (accessor, arg) => {
 			this.runRestartTaskCommand(accessor, arg);
 		});

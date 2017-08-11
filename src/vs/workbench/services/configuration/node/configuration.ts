@@ -709,7 +709,7 @@ class FolderConfiguration<T> extends Disposable {
 										type: 'chrome',
 										request: 'launch',
 										file: 'build/debug-html5',
-										preLaunchTask: 'compileDebugHtml5',
+										preLaunchTask: 'Build for Debug HTML5',
 										sourceMaps: true,
 										runtimeExecutable: exec,
 										cwd: this.folder.fsPath
@@ -719,7 +719,7 @@ class FolderConfiguration<T> extends Disposable {
 										type: 'krom',
 										request: 'launch',
 										file: 'build/krom',
-										preLaunchTask: 'compileKrom',
+										preLaunchTask: 'Build for Krom',
 										sourceMaps: true,
 										kha: '${command.FindKha}',
 										ffmpeg: '${command.FindFFMPEG}',
@@ -732,40 +732,55 @@ class FolderConfiguration<T> extends Disposable {
 						};
 						this.workspaceFilePathToConfiguration['.vscode/launch.json'] = TPromise.as(new ConfigurationModel<T>(launchConfig));
 
-						let html5Args = ['debug-html5'];
-						let kromArgs = ['krom'];
-						if (this.ffmpegPath.length > 0) {
-							html5Args.push('--ffmpeg');
-							html5Args.push(this.ffmpegPath);
-							kromArgs.push('--ffmpeg');
-							kromArgs.push(this.ffmpegPath);
+						const systems = [
+							{ arg: 'debug-html5', name: 'Debug HTML5', default: true },
+							{ arg: 'krom', name: 'Krom', default: false },
+							{ arg: 'html5', name: 'HTML5', default: false },
+							{ arg: 'windows', name: 'Windows', default: false },
+							{ arg: 'windowsapp', name: 'Windows Universal', default: false },
+							{ arg: 'osx', name: 'macOS', default: false },
+							{ arg: 'linux', name: 'Linux', default: false },
+							{ arg: 'android', name: 'Android', default: false },
+							{ arg: 'android-native', name: 'Android (native)', default: false },
+							{ arg: 'ios', name: 'iOS', default: false },
+							{ arg: 'pi', name: 'Raspberry Pi', default: false },
+							{ arg: 'tvos', name: 'tvOS', default: false },
+							{ arg: 'tizen', name: 'Tizen', default: false },
+							{ arg: 'flash', name: 'Flash', default: false },
+							{ arg: 'node', name: 'Node.js', default: false },
+							{ arg: 'unity', name: 'Unity', default: false },
+							{ arg: 'xna', name: 'XNA', default: false },
+							{ arg: 'psm', name: 'PlayStation Mobile', default: false },
+							{ arg: 'java', name: 'Java', default: false },
+							{ arg: 'wpf', name: 'WPF', default: false },
+							{ arg: 'ps4', name: 'PlayStation 4', default: false },
+							{ arg: 'xboxone', name: 'Xbox One', default: false },
+							{ arg: 'switch', name: 'Switch', default: false }
+						];
+
+						let tasks = [];
+						for (const system of systems) {
+							let args = [system.arg];
+							if (this.ffmpegPath.length > 0) {
+								args.push('--ffmpeg');
+								args.push(this.ffmpegPath);
+							}
+							tasks.push({
+								taskName: 'Build for ' + system.name,
+								type: 'node',
+								command: path.join(this.findKha(this.folder.fsPath), 'make.js'),
+								args: args,
+								focus: true,
+								group: {
+									kind: 'build',
+									isDefault: system.default
+								}
+							});
 						}
 
 						const tasksConfig: any = {
 							tasks: {
-								tasks: [
-									{
-										taskName: 'compileDebugHtml5',
-										type: 'node',
-										command: path.join(this.findKha(this.folder.fsPath), 'make.js'),
-										args: html5Args,
-										focus: true,
-										group: {
-											kind: 'build',
-											isDefault: true
-										}
-									},
-									{
-										taskName: 'compileKrom',
-										type: 'node',
-										command: path.join(this.findKha(this.folder.fsPath), 'make.js'),
-										args: kromArgs,
-										focus: true,
-										group: {
-											kind: 'build'
-										}
-									}
-								]
+								tasks
 							}
 						};
 						this.workspaceFilePathToConfiguration['.vscode/tasks.json'] = TPromise.as(new ConfigurationModel<T>(tasksConfig));
