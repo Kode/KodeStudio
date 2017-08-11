@@ -36,6 +36,7 @@ import { createHash } from 'crypto';
 import { getWorkspaceLabel, IWorkspacesService } from "vs/platform/workspaces/common/workspaces";
 import * as fs from 'fs';
 import * as path from 'path';
+import * as electron from 'electron';
 
 interface IStat {
 	resource: URI;
@@ -502,7 +503,7 @@ export class WorkspaceServiceImpl extends WorkspaceService {
 	private initCachesForFolders(folders: URI[]): void {
 		for (const folder of folders) {
 			const configKhaPath = this._configuration.user.contents.kha ? this._configuration.user.contents.kha.khaPath : '';
-			const extensionKhaPath = ''; // TODO
+			const extensionKhaPath = path.join(electron.remote.app.getAppPath(), 'extensions', 'kha', 'Kha');
 			this.cachedFolderConfigs.set(folder, this._register(new FolderConfiguration(configKhaPath, extensionKhaPath, folder, this.workspaceSettingsRootFolder, this.hasMultiFolderWorkspace() ? ConfigurationScope.RESOURCE : ConfigurationScope.WINDOW)));
 			this.updateFolderConfiguration(folder, new FolderConfigurationModel<any>(new FolderSettingsModel<any>(null), [], ConfigurationScope.RESOURCE), false);
 		}
