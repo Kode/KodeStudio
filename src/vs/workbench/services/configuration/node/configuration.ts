@@ -502,9 +502,10 @@ export class WorkspaceServiceImpl extends WorkspaceService {
 
 	private initCachesForFolders(folders: URI[]): void {
 		for (const folder of folders) {
-			const configKhaPath = this._configuration.user.contents.kha ? this._configuration.user.contents.kha.khaPath : '';
+			const configKhaPath = (this._configuration.user.contents.kha && this._configuration.user.contents.kha.khaPath) ? this._configuration.user.contents.kha.khaPath : '';
 			const extensionKhaPath = path.join(electron.remote.app.getAppPath(), 'extensions', 'kha', 'Kha');
-			this.cachedFolderConfigs.set(folder, this._register(new FolderConfiguration(configKhaPath, extensionKhaPath, folder, this.workspaceSettingsRootFolder, this.hasMultiFolderWorkspace() ? ConfigurationScope.RESOURCE : ConfigurationScope.WINDOW)));
+			const ffmpegPath = (this._configuration.user.contents.kha && this._configuration.user.contents.kha.ffmpeg) ? this._configuration.user.contents.kha.ffmpeg : '';
+			this.cachedFolderConfigs.set(folder, this._register(new FolderConfiguration(configKhaPath, extensionKhaPath, ffmpegPath, folder, this.workspaceSettingsRootFolder, this.hasMultiFolderWorkspace() ? ConfigurationScope.RESOURCE : ConfigurationScope.WINDOW)));
 			this.updateFolderConfiguration(folder, new FolderConfigurationModel<any>(new FolderSettingsModel<any>(null), [], ConfigurationScope.RESOURCE), false);
 		}
 	}
@@ -638,7 +639,7 @@ class FolderConfiguration<T> extends Disposable {
 	private reloadConfigurationScheduler: RunOnceScheduler;
 	private reloadConfigurationEventEmitter: Emitter<FolderConfigurationModel<T>> = new Emitter<FolderConfigurationModel<T>>();
 
-	constructor(private configKhaPath: string, private extensionKhaPath: string, private folder: URI, private configFolderRelativePath: string, private scope: ConfigurationScope) {
+	constructor(private configKhaPath: string, private extensionKhaPath: string, private ffmpegPath: string, private folder: URI, private configFolderRelativePath: string, private scope: ConfigurationScope) {
 		super();
 
 		this.workspaceFilePathToConfiguration = Object.create(null);
@@ -711,8 +712,6 @@ class FolderConfiguration<T> extends Disposable {
 										preLaunchTask: 'compileDebugHtml5',
 										sourceMaps: true,
 										runtimeExecutable: exec,
-										kha: '${command.FindKha}',
-										ffmpeg: '${command.FindFFMPEG}',
 										cwd: this.folder.fsPath
 									},
 									{
@@ -733,6 +732,15 @@ class FolderConfiguration<T> extends Disposable {
 						};
 						this.workspaceFilePathToConfiguration['.vscode/launch.json'] = TPromise.as(new ConfigurationModel<T>(launchConfig));
 
+						let html5Args = ['debug-html5'];
+						let kromArgs = ['krom'];
+						if (this.ffmpegPath.length > 0) {
+							html5Args.push('--ffmpeg');
+							html5Args.push(this.ffmpegPath);
+							kromArgs.push('--ffmpeg');
+							kromArgs.push(this.ffmpegPath);
+						}
+
 						const tasksConfig: any = {
 							tasks: {
 								tasks: [
@@ -740,17 +748,22 @@ class FolderConfiguration<T> extends Disposable {
 										taskName: 'compileDebugHtml5',
 										type: 'node',
 										command: path.join(this.findKha(this.folder.fsPath), 'make.js'),
-										args: ['debug-html5'],
+										args: html5Args,
 										focus: true,
-										group: 'build'
+										group: {
+											kind: 'build',
+											isDefault: true
+										}
 									},
 									{
 										taskName: 'compileKrom',
 										type: 'node',
 										command: path.join(this.findKha(this.folder.fsPath), 'make.js'),
-										args: ['krom'],
+										args: kromArgs,
 										focus: true,
-										group: 'build'
+										group: {
+											kind: 'build'
+										}
 									}
 								]
 							}
