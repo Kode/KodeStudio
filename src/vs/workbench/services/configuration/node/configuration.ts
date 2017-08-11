@@ -504,8 +504,10 @@ export class WorkspaceServiceImpl extends WorkspaceService {
 		for (const folder of folders) {
 			const configKhaPath = (this._configuration.user.contents.kha && this._configuration.user.contents.kha.khaPath) ? this._configuration.user.contents.kha.khaPath : '';
 			const extensionKhaPath = path.join(electron.remote.app.getAppPath(), 'extensions', 'kha', 'Kha');
+			const configKromPath = (this._configuration.user.contents.krom && this._configuration.user.contents.krom.kromPath) ? this._configuration.user.contents.krom.kromPath : '';
+			const extensionKromPath = path.join(electron.remote.app.getAppPath(), 'extensions', 'krom', 'Krom');
 			const ffmpegPath = (this._configuration.user.contents.kha && this._configuration.user.contents.kha.ffmpeg) ? this._configuration.user.contents.kha.ffmpeg : '';
-			this.cachedFolderConfigs.set(folder, this._register(new FolderConfiguration(configKhaPath, extensionKhaPath, ffmpegPath, folder, this.workspaceSettingsRootFolder, this.hasMultiFolderWorkspace() ? ConfigurationScope.RESOURCE : ConfigurationScope.WINDOW)));
+			this.cachedFolderConfigs.set(folder, this._register(new FolderConfiguration(configKhaPath, extensionKhaPath, configKromPath, extensionKromPath, ffmpegPath, folder, this.workspaceSettingsRootFolder, this.hasMultiFolderWorkspace() ? ConfigurationScope.RESOURCE : ConfigurationScope.WINDOW)));
 			this.updateFolderConfiguration(folder, new FolderConfigurationModel<any>(new FolderSettingsModel<any>(null), [], ConfigurationScope.RESOURCE), false);
 		}
 	}
@@ -639,7 +641,7 @@ class FolderConfiguration<T> extends Disposable {
 	private reloadConfigurationScheduler: RunOnceScheduler;
 	private reloadConfigurationEventEmitter: Emitter<FolderConfigurationModel<T>> = new Emitter<FolderConfigurationModel<T>>();
 
-	constructor(private configKhaPath: string, private extensionKhaPath: string, private ffmpegPath: string, private folder: URI, private configFolderRelativePath: string, private scope: ConfigurationScope) {
+	constructor(private configKhaPath: string, private extensionKhaPath: string, private configKromPath: string, private extensionKromPath: string, private ffmpegPath: string, private folder: URI, private configFolderRelativePath: string, private scope: ConfigurationScope) {
 		super();
 
 		this.workspaceFilePathToConfiguration = Object.create(null);
@@ -655,6 +657,17 @@ class FolderConfiguration<T> extends Disposable {
 			return this.configKhaPath;
 		}
 		return this.extensionKhaPath;
+	}
+
+	private findKrom(): string {
+		if (this.configKromPath.length > 0) {
+			return this.configKromPath;
+		}
+		return this.extensionKromPath;
+	}
+
+	private findFFMPEG(): string {
+		return this.ffmpegPath;
 	}
 
 	loadConfiguration(): TPromise<FolderConfigurationModel<T>> {
@@ -719,11 +732,10 @@ class FolderConfiguration<T> extends Disposable {
 										type: 'krom',
 										request: 'launch',
 										file: 'build/krom',
-										preLaunchTask: 'Build for Krom',
 										sourceMaps: true,
-										kha: '${command.FindKha}',
-										ffmpeg: '${command.FindFFMPEG}',
-										krom: '${command.FindKrom}',
+										kha: this.findKha(this.folder.fsPath),
+										ffmpeg: this.findFFMPEG(),
+										krom: this.findKrom(),
 										cwd: this.folder.fsPath,
 										webRoot: '${workspaceRoot}/build/krom'
 									}
