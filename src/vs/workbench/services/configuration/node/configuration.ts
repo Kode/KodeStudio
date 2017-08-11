@@ -771,6 +771,7 @@ class FolderConfiguration<T> extends Disposable {
 								command: path.join(this.findKha(this.folder.fsPath), 'make.js'),
 								args: args,
 								focus: true,
+								problemMatcher: '$haxe',
 								group: {
 									kind: 'build',
 									isDefault: system.default
