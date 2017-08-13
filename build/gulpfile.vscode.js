@@ -236,22 +236,7 @@ function packageTask(platform, arch, opts) {
 			})
 			.filter(({ name }) => excludedExtensions.indexOf(name) === -1)
 			.filter(({ name }) => builtInExtensions.every(b => b.name !== name));
-		if (platform !== 'linux' || arch !== 'ia32') extensionsList.push('!extensions/kha/**/*-linux32');
-		if (platform !== 'linux' || arch !== 'x64') extensionsList.push('!extensions/kha/**/*-linux64');
-		if (platform !== 'linux' || arch !== 'arm') extensionsList.push('!extensions/kha/**/*-linuxarm');
-		if (platform !== 'linux') extensionsList.push('!extensions/krom/Krom/linux/**');
-		if (platform !== 'darwin') {
-			extensionsList.push('!extensions/kha/**/*-osx');
-			extensionsList.push('!extensions/kha/**/*-macos');
-			extensionsList.push('!extensions/krom/Krom/macos/**');
-		}
-		if (platform !== 'win32') {
-			extensionsList.push('!extensions/kha/**/*.exe');
-			extensionsList.push('!extensions/kha/**/*.dll');
-			extensionsList.push('!extensions/krom/Krom/win32/**');
-			extensionsList.push('!extensions/krom/Krom/windows/**');
-		}
-
+		
 		const localExtensions = es.merge(...localExtensionDescriptions.map(extension => {
 			const nlsFilter = filter('**/*.nls.json', { restore: true });
 
@@ -271,9 +256,26 @@ function packageTask(platform, arch, opts) {
 				.pipe(rename(p => p.dirname = `extensions/${extension.name}/${p.dirname}`));
 		}));
 
+		let filterList = ['**', '!**/*.js.map'];
+		if (platform !== 'linux' || arch !== 'ia32') filterList.push('!extensions/kha/**/*-linux32');
+		if (platform !== 'linux' || arch !== 'x64') filterList.push('!extensions/kha/**/*-linux64');
+		if (platform !== 'linux' || arch !== 'arm') filterList.push('!extensions/kha/**/*-linuxarm');
+		if (platform !== 'linux') filterList.push('!extensions/krom/Krom/linux/**');
+		if (platform !== 'darwin') {
+			filterList.push('!extensions/kha/**/*-osx');
+			filterList.push('!extensions/kha/**/*-macos');
+			filterList.push('!extensions/krom/Krom/macos/**');
+		}
+		if (platform !== 'win32') {
+			filterList.push('!extensions/kha/**/*.exe');
+			filterList.push('!extensions/kha/**/*.dll');
+			filterList.push('!extensions/krom/Krom/win32/**');
+			filterList.push('!extensions/krom/Krom/windows/**');
+		}
+
 		const sources = es.merge(src, localExtensions, localExtensionDependencies, marketplaceExtensions)
 			.pipe(util.setExecutableBit(['**/*.sh']))
-			.pipe(filter(['**', '!**/*.js.map']));
+			.pipe(filter(filterList));
 
 		let version = packageJson.version;
 		const quality = product.quality;
