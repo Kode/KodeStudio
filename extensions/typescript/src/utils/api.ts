@@ -13,7 +13,7 @@ export default class API {
 	constructor(
 		private readonly _versionString: string
 	) {
-		this._version = semver.valid(_versionString);
+		this._version = semver.valid(_versionString) as string;
 		if (!this._version) {
 			this._version = '1.0.0';
 		} else {
