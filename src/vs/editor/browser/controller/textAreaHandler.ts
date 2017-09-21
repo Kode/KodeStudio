@@ -18,7 +18,7 @@ import { HorizontalRange, RenderingContext, RestrictedRenderingContext } from 'v
 import * as viewEvents from 'vs/editor/common/view/viewEvents';
 import { FastDomNode, createFastDomNode } from 'vs/base/browser/fastDomNode';
 import { ViewController } from 'vs/editor/browser/view/viewController';
-import { EndOfLinePreference } from 'vs/editor/common/editorCommon';
+import { EndOfLinePreference, ScrollType } from 'vs/editor/common/editorCommon';
 import { IKeyboardEvent } from 'vs/base/browser/keyboardEvent';
 import { PartFingerprints, PartFingerprint, ViewPart } from 'vs/editor/browser/view/viewPart';
 import { Margin } from 'vs/editor/browser/viewParts/margin/margin';
@@ -168,6 +168,10 @@ export class TextAreaHandler extends ViewPart {
 				}
 
 				return PagedScreenReaderStrategy.fromEditorSelection(currentState, simpleModel, this._selections[0]);
+			},
+
+			deduceModelPosition: (viewAnchorPosition: Position, deltaOffset: number, lineFeedCnt: number): Position => {
+				return this._context.model.deduceModelPositionRelativeToViewPosition(viewAnchorPosition, deltaOffset, lineFeedCnt);
 			}
 		};
 
@@ -201,6 +205,10 @@ export class TextAreaHandler extends ViewPart {
 			}
 		}));
 
+		this._register(this._textAreaInput.onSelectionChangeRequest((modelSelection: Selection) => {
+			this._viewController.setSelection('keyboard', modelSelection);
+		}));
+
 		this._register(this._textAreaInput.onCompositionStart(() => {
 			const lineNumber = this._selections[0].startLineNumber;
 			const column = this._selections[0].startColumn;
@@ -208,7 +216,8 @@ export class TextAreaHandler extends ViewPart {
 			this._context.privateViewEventBus.emit(new viewEvents.ViewRevealRangeRequestEvent(
 				new Range(lineNumber, column, lineNumber, column),
 				viewEvents.VerticalRevealType.Simple,
-				true
+				true,
+				ScrollType.Immediate
 			));
 
 			// Find range pixel position

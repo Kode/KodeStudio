@@ -19,7 +19,7 @@ import pfs = require('vs/base/node/pfs');
 import { Extensions, IColorRegistry, ColorIdentifier, editorBackground, editorForeground } from 'vs/platform/theme/common/colorRegistry';
 import { ThemeType } from 'vs/platform/theme/common/themeService';
 import { Registry } from 'vs/platform/registry/common/platform';
-import { WorkbenchThemeService, IColorCustomizations } from "vs/workbench/services/themes/electron-browser/workbenchThemeService";
+import { WorkbenchThemeService, IColorCustomizations } from 'vs/workbench/services/themes/electron-browser/workbenchThemeService';
 import { getParseErrorMessage } from 'vs/base/common/jsonErrorMessages';
 
 let colorRegistry = <IColorRegistry>Registry.as(Extensions.ColorContribution);
@@ -81,10 +81,7 @@ export class ColorThemeData implements IColorTheme {
 		for (let id in colors) {
 			let colorVal = colors[id];
 			if (typeof colorVal === 'string') {
-				let color = Color.fromHex(colorVal);
-				if (color) {
-					this.customColorMap[id] = color;
-				}
+				this.customColorMap[id] = Color.fromHex(colorVal);
 			}
 		}
 		if (this.themeTokenColors && this.themeTokenColors.length) {
@@ -257,9 +254,9 @@ function _loadColorThemeFromFile(themePath: string, resultRules: ITokenColorizat
 					}
 					// new JSON color themes format
 					for (let colorId in colors) {
-						let colorHex = Color.fromHex(colors[colorId]);
-						if (colorHex) { // ignore invalid colors
-							resultColors[colorId] = colorHex;
+						let colorHex = colors[colorId];
+						if (typeof colorHex === 'string') { // ignore colors tht are null
+							resultColors[colorId] = Color.fromHex(colors[colorId]);
 						}
 					}
 				}
@@ -271,7 +268,7 @@ function _loadColorThemeFromFile(themePath: string, resultRules: ITokenColorizat
 					} else if (typeof tokenColors === 'string') {
 						return _loadSyntaxTokensFromFile(Paths.join(Paths.dirname(themePath), tokenColors), resultRules, {});
 					} else {
-						return TPromise.wrapError(new Error(nls.localize({ key: 'error.invalidformat.tokenColors', comment: ['{0} will be replaced by a path. Values in quotes should not be translated.'] }, "Problem parsing color theme file: {0}. Property 'tokenColors' should be either an array specifying colors or a path to a text mate theme file", themePath)));
+						return TPromise.wrapError(new Error(nls.localize({ key: 'error.invalidformat.tokenColors', comment: ['{0} will be replaced by a path. Values in quotes should not be translated.'] }, "Problem parsing color theme file: {0}. Property 'tokenColors' should be either an array specifying colors or a path to a TextMate theme file", themePath)));
 					}
 				}
 				return null;

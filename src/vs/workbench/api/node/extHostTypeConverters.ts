@@ -16,7 +16,7 @@ import { SaveReason } from 'vs/workbench/services/textfile/common/textfiles';
 import { IPosition } from 'vs/editor/common/core/position';
 import { IRange } from 'vs/editor/common/core/range';
 import { ISelection } from 'vs/editor/common/core/selection';
-import { IRawColorFormat } from "vs/workbench/api/node/extHost.protocol";
+import * as htmlContent from 'vs/base/common/htmlContent';
 
 export interface PositionLike {
 	line: number;
@@ -144,12 +144,48 @@ function isDecorationOptionsArr(something: vscode.Range[] | vscode.DecorationOpt
 	return isDecorationOptions(something[0]) ? true : false;
 }
 
+export namespace MarkdownString {
+
+	export function fromMany(markup: (vscode.MarkdownString | vscode.MarkedString)[]): htmlContent.IMarkdownString[] {
+		return markup.map(MarkdownString.from);
+	}
+
+	interface Codeblock {
+		language: string;
+		value: string;
+	}
+
+	function isCodeblock(thing: any): thing is Codeblock {
+		return typeof thing === 'object'
+			&& typeof (<Codeblock>thing).language === 'string'
+			&& typeof (<Codeblock>thing).value === 'string';
+	}
+
+	export function from(markup: vscode.MarkdownString | vscode.MarkedString): htmlContent.IMarkdownString {
+		if (isCodeblock(markup)) {
+			const { language, value } = markup;
+			return { value: '```' + language + '\n' + value + '\n```\n' };
+		} else if (htmlContent.isMarkdownString(markup)) {
+			return markup;
+		} else if (typeof markup === 'string') {
+			return { value: <string>markup, isTrusted: true };
+		} else {
+			return { value: '' };
+		}
+	}
+	export function to(value: htmlContent.IMarkdownString): vscode.MarkdownString {
+		const ret = new htmlContent.MarkdownString(value.value);
+		ret.isTrusted = value.isTrusted;
+		return ret;
+	}
+}
+
 export function fromRangeOrRangeWithMessage(ranges: vscode.Range[] | vscode.DecorationOptions[]): IDecorationOptions[] {
 	if (isDecorationOptionsArr(ranges)) {
-		return ranges.map((r): IDecorationOptions => {
+		return ranges.map(r => {
 			return {
 				range: fromRange(r.range),
-				hoverMessage: r.hoverMessage,
+				hoverMessage: Array.isArray(r.hoverMessage) ? MarkdownString.fromMany(r.hoverMessage) : r.hoverMessage && MarkdownString.from(r.hoverMessage),
 				renderOptions: <any> /* URI vs Uri */r.renderOptions
 			};
 		});
@@ -257,12 +293,12 @@ export const location = {
 export function fromHover(hover: vscode.Hover): modes.Hover {
 	return <modes.Hover>{
 		range: fromRange(hover.range),
-		contents: hover.contents
+		contents: MarkdownString.fromMany(hover.contents)
 	};
 }
 
 export function toHover(info: modes.Hover): types.Hover {
-	return new types.Hover(info.contents, toRange(info.range));
+	return new types.Hover(info.contents.map(MarkdownString.to), toRange(info.range));
 }
 
 export function toDocumentHighlight(occurrence: modes.DocumentHighlight): types.DocumentHighlight {
@@ -367,19 +403,6 @@ export namespace DocumentLink {
 
 	export function to(link: modes.ILink): vscode.DocumentLink {
 		return new types.DocumentLink(toRange(link.range), link.url && URI.parse(link.url));
-	}
-}
-
-export namespace DocumentColorFormat {
-	export function from(colorFormat: vscode.ColorFormat): IRawColorFormat {
-		let format: string | [string, string];
-		if (typeof colorFormat === 'string') {
-			format = colorFormat;
-		} else {
-			format = [colorFormat.opaque, colorFormat.transparent];
-		}
-
-		return format;
 	}
 }
 

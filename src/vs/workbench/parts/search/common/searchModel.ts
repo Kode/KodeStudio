@@ -24,6 +24,8 @@ import { IReplaceService } from 'vs/workbench/parts/search/common/replace';
 import { IProgressRunner } from 'vs/platform/progress/common/progress';
 import { RangeHighlightDecorations } from 'vs/workbench/common/editor/rangeDecorations';
 import { ModelDecorationOptions } from 'vs/editor/common/model/textModelWithDecorations';
+import { overviewRulerFindMatchForeground } from 'vs/platform/theme/common/colorRegistry';
+import { themeColorFromId } from 'vs/platform/theme/common/themeService';
 
 export class Match {
 
@@ -96,8 +98,8 @@ export class FileMatch extends Disposable {
 		stickiness: TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
 		className: 'currentFindMatch',
 		overviewRuler: {
-			color: 'rgba(246, 185, 77, 0.7)',
-			darkColor: 'rgba(246, 185, 77, 0.7)',
+			color: themeColorFromId(overviewRulerFindMatchForeground),
+			darkColor: themeColorFromId(overviewRulerFindMatchForeground),
 			position: OverviewRulerLane.Center
 		}
 	});
@@ -106,8 +108,8 @@ export class FileMatch extends Disposable {
 		stickiness: TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
 		className: 'findMatch',
 		overviewRuler: {
-			color: 'rgba(246, 185, 77, 0.7)',
-			darkColor: 'rgba(246, 185, 77, 0.7)',
+			color: themeColorFromId(overviewRulerFindMatchForeground),
+			darkColor: themeColorFromId(overviewRulerFindMatchForeground),
 			position: OverviewRulerLane.Center
 		}
 	});
@@ -494,7 +496,7 @@ export class SearchResult extends Disposable {
 	public onChange: Event<IChangeEvent> = this._onChange.event;
 
 	private _folderMatches: FolderMatch[] = [];
-	private _folderMatchesMap: TrieMap<FolderMatch> = new TrieMap<FolderMatch>(TrieMap.PathSplitter);
+	private _folderMatchesMap: TrieMap<FolderMatch> = new TrieMap<FolderMatch>();
 	private _query: ISearchQuery = null;
 	private _showHighlights: boolean;
 
@@ -549,8 +551,12 @@ export class SearchResult extends Disposable {
 		this.disposeMatches();
 	}
 
-	public remove(match: FileMatch): void {
-		this.getFolderMatch(match.resource()).remove(match);
+	public remove(match: FileMatch | FolderMatch): void {
+		if (match instanceof FileMatch) {
+			this.getFolderMatch(match.resource()).remove(match);
+		} else {
+			match.clear();
+		}
 	}
 
 	public replace(match: FileMatch): TPromise<any> {
@@ -648,7 +654,7 @@ export class SearchResult extends Disposable {
 	private disposeMatches(): void {
 		this._folderMatches.forEach(folderMatch => folderMatch.dispose());
 		this._folderMatches = [];
-		this._folderMatchesMap = new TrieMap<FolderMatch>(TrieMap.PathSplitter);
+		this._folderMatchesMap = new TrieMap<FolderMatch>();
 		this._rangeHighlightDecorations.removeHighlightRange();
 	}
 
@@ -787,6 +793,8 @@ export class SearchModel extends Disposable {
 }
 
 export type FileMatchOrMatch = FileMatch | Match;
+
+export type RenderableMatch = FolderMatch | FileMatch | Match;
 
 export class SearchWorkbenchService implements ISearchWorkbenchService {
 

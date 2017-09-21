@@ -21,11 +21,24 @@ const cssContents = `
 }
 `;
 
-const bemFilterExample = 'ul.search-form._wide>li.-querystring+li.-btn_large|bem';
-const expectedBemFilterOutput = `<ul class="search-form search-form_wide">
-		<li class="search-form__querystring"></li>
-		<li class="search-form__btn search-form__btn_large"></li>
-	</ul>`;
+const scssContents = `
+.boo {
+	margin: 10px;
+	p10
+	.hoo {
+		p20
+	}
+}
+@include b(alert) {
+
+	margin: 10px;
+	p30
+
+	@include b(alert) {
+		p40
+	}
+}
+`
 
 const htmlContents = `
 <body class="header">
@@ -43,7 +56,7 @@ const htmlContents = `
 			m10
 		}
 	</style>
-	${bemFilterExample}
+	<span></span>
 	(ul>li.item$)*2
 	(ul>li.item$)*2+span
 	(div>dl>(dt+dd)*2)
@@ -169,10 +182,6 @@ suite('Tests for Expand Abbreviations (HTML)', () => {
 		});
 	});
 
-	test('Expand using bem filter', () => {
-		return testHtmlExpandAbbreviation(new Selection(16, 55, 16, 55), bemFilterExample, expectedBemFilterOutput);
-	});
-
 });
 
 suite('Tests for Expand Abbreviations (CSS)', () => {
@@ -186,7 +195,21 @@ suite('Tests for Expand Abbreviations (CSS)', () => {
 				return Promise.resolve();
 			});
 		});
+	});
 
+	test('Expand abbreviation (SCSS)', () => {
+		return withRandomFileEditor(scssContents, 'scss', (editor, doc) => {
+			editor.selections = [
+				new Selection(3, 4, 3, 4),
+				new Selection(5, 5, 5, 5),
+				new Selection(11, 4, 11, 4),
+				new Selection(14, 5, 14, 5)
+			];
+			return expandEmmetAbbreviation(null).then(() => {
+				assert.equal(editor.document.getText(), scssContents.replace(/p(\d\d)/g, 'padding: $1px;'));
+				return Promise.resolve();
+			});
+		});
 	});
 });
 
@@ -196,8 +219,8 @@ suite('Tests for Wrap with Abbreviations', () => {
 	const multiCursors = [new Selection(2, 6, 2, 6), new Selection(3, 6, 3, 6)];
 	const multiCursorsWithSelection = [new Selection(2, 2, 2, 28), new Selection(3, 2, 3, 33)];
 	const multiCursorsWithFullLineSelection = [new Selection(2, 0, 2, 28), new Selection(3, 0, 3, 33)];
-	
-	
+
+
 	test('Wrap with block element using multi cursor', () => {
 		return testWrapWithAbbreviation(multiCursors, 'div', wrapBlockElementExpected);
 	});
@@ -247,13 +270,13 @@ suite('Tests for Wrap with Abbreviations', () => {
 	});
 
 	test('Wrap individual lines with abbreviation', () => {
-	const contents = `
+		const contents = `
 	<ul class="nav main">
 		<li class="item1">img</li>
 		<li class="item2">hithere</li>
 	</ul>
 `;
-	const wrapIndividualLinesExpected = `
+		const wrapIndividualLinesExpected = `
 	<ul class="nav main">
 		<ul>
 			<li class="hello1"><li class="item1">img</li></li>
@@ -285,17 +308,60 @@ suite('Tests for Wrap with Abbreviations', () => {
 			</ul>
 		</ul>
 	`;
-			return withRandomFileEditor(contents, 'html', (editor, doc) => {
-				editor.selections = [new Selection(2, 3, 3, 16)];
-				return wrapIndividualLinesWithAbbreviation({ abbreviation: 'ul>li.hello$*|t' }).then(() => {
-					assert.equal(editor.document.getText(), wrapIndividualLinesExpected);
+		return withRandomFileEditor(contents, 'html', (editor, doc) => {
+			editor.selections = [new Selection(2, 3, 3, 16)];
+			return wrapIndividualLinesWithAbbreviation({ abbreviation: 'ul>li.hello$*|t' }).then(() => {
+				assert.equal(editor.document.getText(), wrapIndividualLinesExpected);
+				return Promise.resolve();
+			});
+		});
+	});
+});
+
+suite('Tests for jsx, xml and xsl', () => {
+	teardown(closeAllEditors);
+	
+		test('Expand abbreviation with className instead of class in jsx', () => {
+			return withRandomFileEditor('ul.nav', 'javascriptreact', (editor, doc) => {
+				editor.selection = new Selection(0, 6, 0, 6);
+				return expandEmmetAbbreviation({language: 'javascriptreact'}).then(() => {
+					assert.equal(editor.document.getText(), '<ul className="nav"></ul>');
 					return Promise.resolve();
 				});
 			});
 		});
+
+		test('Expand abbreviation with self closing tags for jsx', () => {
+			return withRandomFileEditor('img', 'javascriptreact', (editor, doc) => {
+				editor.selection = new Selection(0, 6, 0, 6);
+				return expandEmmetAbbreviation({language: 'javascriptreact'}).then(() => {
+					assert.equal(editor.document.getText(), '<img src="" alt=""/>');
+					return Promise.resolve();
+				});
+			});
+		});
+
+		test('Expand abbreviation with self closing tags for xml', () => {
+			return withRandomFileEditor('img', 'xml', (editor, doc) => {
+				editor.selection = new Selection(0, 6, 0, 6);
+				return expandEmmetAbbreviation({language: 'xml'}).then(() => {
+					assert.equal(editor.document.getText(), '<img src="" alt=""/>');
+					return Promise.resolve();
+				});
+			});
+		});
+
+		test('Expand abbreviation with no self closing tags for html', () => {
+			return withRandomFileEditor('img', 'html', (editor, doc) => {
+				editor.selection = new Selection(0, 6, 0, 6);
+				return expandEmmetAbbreviation({language: 'html'}).then(() => {
+					assert.equal(editor.document.getText(), '<img src="" alt="">');
+					return Promise.resolve();
+				});
+			});
+		});
+
 });
-
-
 
 function testHtmlExpandAbbreviation(selection: Selection, abbreviation: string, expandedText: string, shouldFail?: boolean): Thenable<any> {
 	return withRandomFileEditor(htmlContents, 'html', (editor, doc) => {

@@ -174,6 +174,14 @@ export class TerminalPanel extends Panel {
 		this._findWidget.hide();
 	}
 
+	public showNextFindTermFindWidget(): void {
+		this._findWidget.showNextFindTerm();
+	}
+
+	public showPreviousFindTermFindWidget(): void {
+		this._findWidget.showPreviousFindTerm();
+	}
+
 	private _attachEventListeners(): void {
 		this._register(dom.addDisposableListener(this._parentDomElement, 'mousedown', (event: MouseEvent) => {
 			if (this._terminalService.terminalInstances.length === 0) {
@@ -246,7 +254,7 @@ export class TerminalPanel extends Panel {
 					uri = URI.parse(uri).path;
 				} else if (e.dataTransfer.files.length > 0) {
 					// Check if the file was dragged from the filesystem
-					uri = URI.file(e.dataTransfer.files[0].path).path;
+					uri = URI.file(e.dataTransfer.files[0].path).fsPath;
 				}
 
 				if (!uri) {

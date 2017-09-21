@@ -117,11 +117,7 @@ export class ProgressService2 implements IProgressService2 {
 
 			let text = options.title;
 			if (progress.value && progress.value.message) {
-				if (options.title) {
-					text = localize('progress.text', "{0} - {1}", progress.value.message, options.title);
-				} else {
-					text = progress.value.message;
-				}
+				text = progress.value.message;
 			}
 
 			if (!text) {
@@ -131,8 +127,11 @@ export class ProgressService2 implements IProgressService2 {
 			}
 
 			let title = text;
+			if (options.title && options.title !== title) {
+				title = localize('progress.subtitle', "{0} - {1}", options.title, title);
+			}
 			if (options.tooltip) {
-				title = localize('progress.title', "{0}: {1}", options.tooltip, text);
+				title = localize('progress.title', "{0}: {1}", options.tooltip, title);
 			}
 
 			WindowProgressItem.Instance.text = text;
@@ -161,7 +160,7 @@ export class ProgressService2 implements IProgressService2 {
 				'progress-badge'
 			);
 			const startTimeVisible = Date.now();
-			const minTimeVisible = 150;
+			const minTimeVisible = 300;
 			activityProgress = {
 				dispose() {
 					const d = Date.now() - startTimeVisible;
@@ -174,7 +173,7 @@ export class ProgressService2 implements IProgressService2 {
 					}
 				}
 			};
-		}, 150);
+		}, 300);
 
 		always(promise, () => {
 			clearTimeout(delayHandle);

@@ -6,6 +6,8 @@
 import 'vs/css!./simpleFindWidget';
 import * as nls from 'vs/nls';
 import { Widget } from 'vs/base/browser/ui/widget';
+import { Delayer } from 'vs/base/common/async';
+import { HistoryNavigator } from 'vs/base/common/history';
 import { KeyCode, KeyMod } from 'vs/base/common/keyCodes';
 import * as dom from 'vs/base/browser/dom';
 import { FindInput } from 'vs/base/browser/ui/findinput/findInput';
@@ -25,6 +27,9 @@ export abstract class SimpleFindWidget extends Widget {
 	protected _domNode: HTMLElement;
 	protected _isVisible: boolean;
 	protected _focusTracker: dom.IFocusTracker;
+	protected _findInputFocusTracker: dom.IFocusTracker;
+	protected _findHistory: HistoryNavigator<string>;
+	protected _updateHistoryDelayer: Delayer<void>;
 
 	constructor(
 		@IContextViewService private _contextViewService: IContextViewService,
@@ -36,8 +41,13 @@ export abstract class SimpleFindWidget extends Widget {
 			placeholder: NLS_FIND_INPUT_PLACEHOLDER,
 		}));
 
+		// Find History with update delayer
+		this._findHistory = new HistoryNavigator<string>();
+		this._updateHistoryDelayer = new Delayer<void>(500);
+
 		this.oninput(this._findInput.domNode, (e) => {
 			this.onInputChanged();
+			this._delayedUpdateHistory();
 		});
 
 		this._register(this._findInput.onKeyDown((e) => {
@@ -100,6 +110,10 @@ export abstract class SimpleFindWidget extends Widget {
 		this._register(this._focusTracker.addFocusListener(this.onFocusTrackerFocus.bind(this)));
 		this._register(this._focusTracker.addBlurListener(this.onFocusTrackerBlur.bind(this)));
 
+		this._findInputFocusTracker = this._register(dom.trackFocus(this._findInput.domNode));
+		this._register(this._findInputFocusTracker.addFocusListener(this.onFindInputFocusTrackerFocus.bind(this)));
+		this._register(this._findInputFocusTracker.addBlurListener(this.onFindInputFocusTrackerBlur.bind(this)));
+
 		this._register(dom.addDisposableListener(this._domNode, 'click', (event) => {
 			event.stopPropagation();
 		}));
@@ -109,6 +123,8 @@ export abstract class SimpleFindWidget extends Widget {
 	protected abstract find(previous: boolean);
 	protected abstract onFocusTrackerFocus();
 	protected abstract onFocusTrackerBlur();
+	protected abstract onFindInputFocusTrackerFocus();
+	protected abstract onFindInputFocusTrackerBlur();
 
 	protected get inputValue() {
 		return this._findInput.getValue();
@@ -165,6 +181,30 @@ export abstract class SimpleFindWidget extends Widget {
 
 			dom.removeClass(this._domNode, 'visible');
 			this._domNode.setAttribute('aria-hidden', 'true');
+		}
+	}
+
+	protected _delayedUpdateHistory() {
+		this._updateHistoryDelayer.trigger(this._updateHistory.bind(this));
+	}
+
+	protected _updateHistory() {
+		if (this.inputValue) {
+			this._findHistory.add(this._findInput.getValue());
+		}
+	}
+
+	public showNextFindTerm() {
+		let next = this._findHistory.next();
+		if (next) {
+			this._findInput.setValue(next);
+		}
+	}
+
+	public showPreviousFindTerm() {
+		let previous = this._findHistory.previous();
+		if (previous) {
+			this._findInput.setValue(previous);
 		}
 	}
 }

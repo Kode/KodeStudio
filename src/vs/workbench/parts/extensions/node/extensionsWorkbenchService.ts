@@ -25,6 +25,7 @@ import {
 import { getGalleryExtensionIdFromLocal, getGalleryExtensionTelemetryData, getLocalExtensionTelemetryData } from 'vs/platform/extensionManagement/common/extensionManagementUtil';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
+import { IWindowService } from 'vs/platform/windows/common/windows';
 import { IConfigurationEditingService, ConfigurationTarget } from 'vs/workbench/services/configuration/common/configurationEditing';
 import { IChoiceService, IMessageService } from 'vs/platform/message/common/message';
 import Severity from 'vs/base/common/severity';
@@ -326,6 +327,7 @@ export class ExtensionsWorkbenchService implements IExtensionsWorkbenchService {
 		@IExtensionEnablementService private extensionEnablementService: IExtensionEnablementService,
 		@IExtensionTipsService private tipsService: IExtensionTipsService,
 		@IWorkspaceContextService private workspaceContextService: IWorkspaceContextService,
+		@IWindowService private windowService: IWindowService
 	) {
 		this.stateProvider = ext => this.getExtensionState(ext);
 
@@ -412,6 +414,7 @@ export class ExtensionsWorkbenchService implements IExtensionsWorkbenchService {
 	}
 
 	open(extension: IExtension, sideByside: boolean = false): TPromise<any> {
+		this.telemetryService.publicLog('extensionGallery:open', extension.telemetryData);
 		return this.editorService.openEditor(this.instantiationService.createInstance(ExtensionsInput, extension), null, sideByside);
 	}
 
@@ -813,33 +816,36 @@ export class ExtensionsWorkbenchService implements IExtensionsWorkbenchService {
 
 		const extensionId = match[1];
 
-		this.queryGallery({ names: [extensionId] })
-			.then(result => {
+		this.queryLocal().then(local => {
+			if (local.some(local => local.id === extensionId)) {
+				return TPromise.as(null);
+			}
+
+			return this.queryGallery({ names: [extensionId] }).then(result => {
 				if (result.total < 1) {
 					return TPromise.as(null);
 				}
 
 				const extension = result.firstPage[0];
-				return this.open(extension).then(() => {
-					const message = nls.localize('installConfirmation', "Would you like to install the '{0}' extension?", extension.displayName, extension.publisher);
-					const options = [
-						nls.localize('install', "Install"),
-						nls.localize('cancel', "Cancel")
-					];
-					return this.choiceService.choose(Severity.Info, message, options, 2, false)
-						.then<void>(value => {
-							if (value === 0) {
-								const promises: TPromise<any>[] = [];
-								if (this.local.every(local => local.id !== extension.id)) {
-									promises.push(this.install(extension));
-								}
-								return TPromise.join(promises);
+
+				return this.windowService.show().then(() => {
+					return this.open(extension).then(() => {
+						const message = nls.localize('installConfirmation', "Would you like to install the '{0}' extension?", extension.displayName, extension.publisher);
+						const options = [
+							nls.localize('install', "Install"),
+							nls.localize('cancel', "Cancel")
+						];
+						return this.choiceService.choose(Severity.Info, message, options, 2, false).then(value => {
+							if (value !== 0) {
+								return TPromise.as(null);
 							}
-							return TPromise.as(null);
+
+							return this.install(extension);
 						});
+					});
 				});
-			})
-			.done(undefined, error => this.onError(error));
+			});
+		}).done(undefined, error => this.onError(error));
 	}
 
 	dispose(): void {

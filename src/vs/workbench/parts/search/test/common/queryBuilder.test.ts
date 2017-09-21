@@ -7,6 +7,7 @@
 import * as assert from 'assert';
 import { IExpression } from 'vs/base/common/glob';
 import * as paths from 'vs/base/common/paths';
+import * as arrays from 'vs/base/common/arrays';
 import uri from 'vs/base/common/uri';
 import { TestInstantiationService } from 'vs/platform/instantiation/test/common/instantiationServiceMock';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
@@ -216,7 +217,7 @@ suite('QueryBuilder', () => {
 					folder: ROOT_1_URI
 				}],
 				type: QueryType.Text,
-				excludePattern: patternsToIExpression(globalGlob('foo')),
+				excludePattern: patternsToIExpression(...globalGlob('foo')),
 				useRipgrep: true
 			});
 	});
@@ -294,7 +295,7 @@ suite('QueryBuilder', () => {
 				[ROOT_1_URI],
 				{
 					extraFileResources: [getUri('/foo/bar.js')],
-					excludePattern: '**/*.js'
+					excludePattern: '*.js'
 				}
 			),
 			<ISearchQuery>{
@@ -302,7 +303,7 @@ suite('QueryBuilder', () => {
 				folderQueries: [{
 					folder: ROOT_1_URI
 				}],
-				excludePattern: patternsToIExpression(globalGlob('**/*.js')),
+				excludePattern: patternsToIExpression(...globalGlob('*.js')),
 				type: QueryType.Text,
 				useRipgrep: true
 			});
@@ -313,7 +314,7 @@ suite('QueryBuilder', () => {
 				[ROOT_1_URI],
 				{
 					extraFileResources: [getUri('/foo/bar.js')],
-					includePattern: '**/*.txt'
+					includePattern: '*.txt'
 				}
 			),
 			<ISearchQuery>{
@@ -321,7 +322,7 @@ suite('QueryBuilder', () => {
 				folderQueries: [{
 					folder: ROOT_1_URI
 				}],
-				includePattern: patternsToIExpression(globalGlob('**/*.txt')),
+				includePattern: patternsToIExpression(...globalGlob('*.txt')),
 				type: QueryType.Text,
 				useRipgrep: true
 			});
@@ -333,7 +334,7 @@ suite('QueryBuilder', () => {
 				assert.deepEqual(
 					queryBuilder.parseSearchPaths(includePattern),
 					<ISearchPathsResult>{
-						pattern: patternsToIExpression(...expectedPatterns.map(globalGlob))
+						pattern: patternsToIExpression(...arrays.flatten(expectedPatterns.map(globalGlob)))
 					},
 					includePattern);
 			}
@@ -371,7 +372,7 @@ suite('QueryBuilder', () => {
 					fixPath('/foo/bar') + ',' + 'a',
 					<ISearchPathsResult>{
 						searchPaths: [{ searchPath: getUri('/foo/bar') }],
-						pattern: patternsToIExpression(globalGlob('a'))
+						pattern: patternsToIExpression(...globalGlob('a'))
 					}
 				],
 				[
@@ -644,8 +645,11 @@ function cleanUndefinedQueryValues(q: any): void {
 	return q;
 }
 
-function globalGlob(str: string): string {
-	return `{**/${str}/**,**/${str}}`;
+function globalGlob(pattern: string): string[] {
+	return [
+		`**/${pattern}/**`,
+		`**/${pattern}`
+	];
 }
 
 function patternsToIExpression(...patterns: string[]): IExpression {

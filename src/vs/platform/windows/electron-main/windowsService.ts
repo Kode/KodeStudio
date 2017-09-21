@@ -15,10 +15,10 @@ import { shell, crashReporter, app } from 'electron';
 import Event, { chain } from 'vs/base/common/event';
 import { fromEventEmitter } from 'vs/base/node/event';
 import { IURLService } from 'vs/platform/url/common/url';
-import { ILifecycleService } from "vs/platform/lifecycle/electron-main/lifecycleMain";
-import { IWindowsMainService, ISharedProcess } from "vs/platform/windows/electron-main/windows";
-import { IHistoryMainService, IRecentlyOpened } from "vs/platform/history/common/history";
-import { IWorkspaceIdentifier } from "vs/platform/workspaces/common/workspaces";
+import { ILifecycleService } from 'vs/platform/lifecycle/electron-main/lifecycleMain';
+import { IWindowsMainService, ISharedProcess } from 'vs/platform/windows/electron-main/windows';
+import { IHistoryMainService, IRecentlyOpened } from 'vs/platform/history/common/history';
+import { IWorkspaceIdentifier } from 'vs/platform/workspaces/common/workspaces';
 
 export class WindowsService implements IWindowsService, IDisposable {
 
@@ -124,11 +124,21 @@ export class WindowsService implements IWindowsService, IDisposable {
 		return TPromise.as(null);
 	}
 
-	newWorkspace(windowId: number): TPromise<void> {
+	createAndOpenWorkspace(windowId: number, folders?: string[], path?: string): TPromise<void> {
 		const codeWindow = this.windowsMainService.getWindowById(windowId);
 
 		if (codeWindow) {
-			this.windowsMainService.newWorkspace(codeWindow);
+			this.windowsMainService.createAndOpenWorkspace(codeWindow, folders, path);
+		}
+
+		return TPromise.as(null);
+	}
+
+	saveAndOpenWorkspace(windowId: number, path: string): TPromise<void> {
+		const codeWindow = this.windowsMainService.getWindowById(windowId);
+
+		if (codeWindow) {
+			this.windowsMainService.saveAndOpenWorkspace(codeWindow, path);
 		}
 
 		return TPromise.as(null);
@@ -356,10 +366,15 @@ export class WindowsService implements IWindowsService, IDisposable {
 	 * This should only fire whenever an extension URL is open
 	 * and there are no windows to handle it.
 	 */
-	private openExtensionForURI(uri: URI): TPromise<void> {
+	private async openExtensionForURI(uri: URI): TPromise<void> {
 		const cli = assign(Object.create(null), this.environmentService.args);
-		this.windowsMainService.open({ context: OpenContext.API, cli });
-		return TPromise.as(null);
+		const window = await this.windowsMainService.open({ context: OpenContext.API, cli })[0];
+
+		if (!window) {
+			return;
+		}
+
+		window.win.show();
 	}
 
 	dispose(): void {

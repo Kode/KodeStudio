@@ -21,6 +21,7 @@ import { IConfigurationChangedEvent } from 'vs/editor/common/config/editorOption
 import { CharacterHardWrappingLineMapperFactory } from 'vs/editor/common/viewModel/characterHardWrappingLineMapper';
 import { ViewLayout } from 'vs/editor/common/viewLayout/viewLayout';
 import { Color } from 'vs/base/common/color';
+import { IDisposable } from 'vs/base/common/lifecycle';
 
 const USE_IDENTITY_LINES_COLLECTION = true;
 
@@ -38,7 +39,7 @@ export class ViewModel extends viewEvents.ViewEventEmitter implements IViewModel
 	private _isDisposing: boolean;
 	private _centeredViewLine: number;
 
-	constructor(editorId: number, configuration: editorCommon.IConfiguration, model: editorCommon.IModel) {
+	constructor(editorId: number, configuration: editorCommon.IConfiguration, model: editorCommon.IModel, scheduleAtNextAnimationFrame: (callback: () => void) => IDisposable) {
 		super();
 
 		this.editorId = editorId;
@@ -70,7 +71,7 @@ export class ViewModel extends viewEvents.ViewEventEmitter implements IViewModel
 
 		this.coordinatesConverter = this.lines.createCoordinatesConverter();
 
-		this.viewLayout = this._register(new ViewLayout(this.configuration, this.getLineCount()));
+		this.viewLayout = this._register(new ViewLayout(this.configuration, this.getLineCount(), scheduleAtNextAnimationFrame));
 
 		this._register(this.viewLayout.onDidScroll((e) => {
 			this._emit([new viewEvents.ViewScrollChangedEvent(e)]);
@@ -125,7 +126,7 @@ export class ViewModel extends viewEvents.ViewEventEmitter implements IViewModel
 			this.decorations.onLineMappingChanged();
 			this.viewLayout.onFlushed(this.getLineCount());
 
-			if (this.viewLayout.getScrollTop() !== 0) {
+			if (this.viewLayout.getCurrentScrollTop() !== 0) {
 				// Never change the scroll position from 0 to something else...
 				revealPreviousCenteredModelRange = true;
 			}
@@ -148,7 +149,8 @@ export class ViewModel extends viewEvents.ViewEventEmitter implements IViewModel
 			eventsCollector.emit(new viewEvents.ViewRevealRangeRequestEvent(
 				newCenteredViewRange,
 				viewEvents.VerticalRevealType.Center,
-				false
+				false,
+				editorCommon.ScrollType.Immediate
 			));
 		}
 	}
@@ -438,6 +440,22 @@ export class ViewModel extends viewEvents.ViewEventEmitter implements IViewModel
 
 	public validateModelPosition(position: IPosition): Position {
 		return this.model.validatePosition(position);
+	}
+
+	public deduceModelPositionRelativeToViewPosition(viewAnchorPosition: Position, deltaOffset: number, lineFeedCnt: number): Position {
+		const modelAnchor = this.coordinatesConverter.convertViewPositionToModelPosition(viewAnchorPosition);
+		if (this.model.getEOL().length === 2) {
+			// This model uses CRLF, so the delta must take that into account
+			if (deltaOffset < 0) {
+				deltaOffset -= lineFeedCnt;
+			} else {
+				deltaOffset += lineFeedCnt;
+			}
+		}
+
+		const modelAnchorOffset = this.model.getOffsetAt(modelAnchor);
+		const resultOffset = modelAnchorOffset + deltaOffset;
+		return this.model.getPositionAt(resultOffset);
 	}
 
 	public getPlainTextToCopy(ranges: Range[], emptySelectionClipboard: boolean): string {

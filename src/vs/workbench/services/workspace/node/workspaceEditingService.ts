@@ -8,12 +8,15 @@
 import { IWorkspaceEditingService } from 'vs/workbench/services/workspace/common/workspaceEditing';
 import URI from 'vs/base/common/uri';
 import { equals, distinct } from 'vs/base/common/arrays';
-import { TPromise } from "vs/base/common/winjs.base";
+import { TPromise } from 'vs/base/common/winjs.base';
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { IWindowsService } from 'vs/platform/windows/common/windows';
 import { IEnvironmentService } from 'vs/platform/environment/common/environment';
 import { IJSONEditingService } from 'vs/workbench/services/configuration/common/jsonEditing';
-import { IWorkspacesService } from "vs/platform/workspaces/common/workspaces";
+import { IWorkspacesService, IStoredWorkspaceFolder } from 'vs/platform/workspaces/common/workspaces';
+import { isLinux } from 'vs/base/common/platform';
+import { dirname, relative } from 'path';
+import { isEqualOrParent } from 'vs/base/common/paths';
 
 export class WorkspaceEditingService implements IWorkspaceEditingService {
 
@@ -69,7 +72,16 @@ export class WorkspaceEditingService implements IWorkspaceEditingService {
 
 		// Apply to config
 		if (newWorkspaceRoots.length) {
-			return this.jsonEditingService.write(workspace.configuration, { key: 'folders', value: newWorkspaceRoots }, true);
+			const workspaceConfigFolder = dirname(workspace.configuration.fsPath);
+			const value: IStoredWorkspaceFolder[] = newWorkspaceRoots.map(newWorkspaceRoot => {
+				if (isEqualOrParent(newWorkspaceRoot, workspaceConfigFolder, !isLinux)) {
+					newWorkspaceRoot = relative(workspaceConfigFolder, newWorkspaceRoot) || '.'; // absolute paths get converted to relative ones to workspace location if possible
+				}
+
+				return { path: newWorkspaceRoot };
+			});
+
+			return this.jsonEditingService.write(workspace.configuration, { key: 'folders', value }, true);
 		} else {
 			// TODO: Sandeep - Removing all roots?
 		}
@@ -83,7 +95,6 @@ export class WorkspaceEditingService implements IWorkspaceEditingService {
 		}
 
 		// Prevent duplicates
-		const validatedRoots = distinct(roots.map(root => root.toString(true /* skip encoding */)));
-		return validatedRoots;
+		return distinct(roots.map(root => root.fsPath), root => isLinux ? root : root.toLowerCase());
 	}
 }

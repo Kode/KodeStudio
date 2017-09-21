@@ -7,9 +7,10 @@
 import * as crypto from 'crypto';
 
 import URI from 'vs/base/common/uri';
-import { Color as CommonColor, HSLA } from 'vs/base/common/color';
+import { Color as BaseColor, HSLA } from 'vs/base/common/color';
 import { illegalArgument } from 'vs/base/common/errors';
 import * as vscode from 'vscode';
+import { isMarkdownString } from 'vs/base/common/htmlContent';
 
 export class Disposable {
 
@@ -698,16 +699,20 @@ export class Diagnostic {
 
 export class Hover {
 
-	public contents: vscode.MarkedString[];
+	public contents: vscode.MarkdownString[] | vscode.MarkedString[];
 	public range: Range;
 
-	constructor(contents: vscode.MarkedString | vscode.MarkedString[], range?: Range) {
+	constructor(
+		contents: vscode.MarkdownString | vscode.MarkedString | vscode.MarkdownString[] | vscode.MarkedString[],
+		range?: Range
+	) {
 		if (!contents) {
 			throw new Error('Illegal argument, contents must be defined');
 		}
-
 		if (Array.isArray(contents)) {
-			this.contents = contents;
+			this.contents = <vscode.MarkdownString[] | vscode.MarkedString[]>contents;
+		} else if (isMarkdownString(contents)) {
+			this.contents = [contents];
 		} else {
 			this.contents = [contents];
 		}
@@ -1020,44 +1025,40 @@ export class Color {
 	readonly blue: number;
 	readonly alpha: number;
 
-	constructor(red: number, green: number, blue: number, alpha?: number) {
+	constructor(red: number, green: number, blue: number, alpha: number) {
 		this.red = red;
 		this.green = green;
 		this.blue = blue;
 		this.alpha = alpha;
 	}
 
-	static fromHSLA(hue: number, saturation: number, luminosity: number, alpha?: number): Color {
-		if (!alpha) {
-			alpha = 1;
-		}
-		const color = new CommonColor(new HSLA(hue, saturation, luminosity, alpha)).rgba;
-		return new Color(color.r, color.g, color.b, color.a / 255);
+	static fromHSLA(hue: number, saturation: number, luminance: number, alpha: number): Color {
+		const color = new BaseColor(new HSLA(hue, saturation, luminance, alpha)).rgba;
+		return new Color(color.r, color.g, color.b, color.a);
 	}
 
-	static fromHex(hex: string): Color {
-		const color = CommonColor.fromHex(hex).rgba;
-		return new Color(color.r, color.g, color.b, color.a / 255);
+	static fromHex(hex: string): Color | null {
+		let baseColor = BaseColor.Format.CSS.parseHex(hex);
+		if (baseColor) {
+			const rgba = baseColor.rgba;
+			return new Color(rgba.r, rgba.g, rgba.b, rgba.a);
+		}
+		return null;
 	}
 }
 
 export type IColorFormat = string | { opaque: string, transparent: string };
 
-export class ColorInfo {
+export class ColorRange {
 	range: Range;
 
 	color: Color;
 
-	format: IColorFormat;
-
 	availableFormats: IColorFormat[];
 
-	constructor(range: Range, color: Color, format: IColorFormat, availableFormats: IColorFormat[]) {
+	constructor(range: Range, color: Color, availableFormats: IColorFormat[]) {
 		if (color && !(color instanceof Color)) {
 			throw illegalArgument('color');
-		}
-		if (format && (typeof format !== 'string') && !format.opaque && !format.transparent && typeof format.opaque !== 'string' && typeof format.transparent !== 'string') {
-			throw illegalArgument('format');
 		}
 		if (availableFormats && !Array.isArray(availableFormats)) {
 			throw illegalArgument('availableFormats');
@@ -1067,7 +1068,6 @@ export class ColorInfo {
 		}
 		this.range = range;
 		this.color = color;
-		this.format = format;
 		this.availableFormats = availableFormats;
 	}
 }

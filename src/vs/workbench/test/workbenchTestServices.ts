@@ -54,8 +54,8 @@ import { IThemeService } from 'vs/platform/theme/common/themeService';
 import { isLinux } from 'vs/base/common/platform';
 import { generateUuid } from 'vs/base/common/uuid';
 import { TestThemeService } from 'vs/platform/theme/test/common/testThemeService';
-import { IWorkspaceIdentifier } from "vs/platform/workspaces/common/workspaces";
-import { IRecentlyOpened } from "vs/platform/history/common/history";
+import { IWorkspaceIdentifier } from 'vs/platform/workspaces/common/workspaces';
+import { IRecentlyOpened } from 'vs/platform/history/common/history';
 
 export function createFileInput(instantiationService: IInstantiationService, resource: URI): FileEditorInput {
 	return instantiationService.createInstance(FileEditorInput, resource, void 0);
@@ -110,10 +110,6 @@ export class TestContextService implements IWorkspaceContextService {
 
 	public getWorkspace(): IWorkbenchWorkspace {
 		return this.workspace;
-	}
-
-	public saveWorkspace(location: URI): TPromise<void> {
-		return TPromise.as(null);
 	}
 
 	public getRoot(resource: URI): URI {
@@ -411,10 +407,6 @@ export class TestStorageService extends EventEmitter implements IStorageService 
 		this.storage.store(key, value, scope);
 	}
 
-	swap(key: string, valueA: any, valueB: any, scope: StorageScope = StorageScope.GLOBAL, defaultValue?: any): void {
-		this.storage.swap(key, valueA, valueB, scope, defaultValue);
-	}
-
 	remove(key: string, scope: StorageScope = StorageScope.GLOBAL): void {
 		this.storage.remove(key, scope);
 	}
@@ -639,9 +631,19 @@ export class TestFileService implements IFileService {
 	private _onFileChanges: Emitter<FileChangesEvent>;
 	private _onAfterOperation: Emitter<FileOperationEvent>;
 
+	private content = 'Hello Html';
+
 	constructor() {
 		this._onFileChanges = new Emitter<FileChangesEvent>();
 		this._onAfterOperation = new Emitter<FileOperationEvent>();
+	}
+
+	public setContent(content: string): void {
+		this.content = content;
+	}
+
+	public getContent(): string {
+		return this.content;
 	}
 
 	public get onFileChanges(): Event<FileChangesEvent> {
@@ -683,7 +685,7 @@ export class TestFileService implements IFileService {
 	resolveContent(resource: URI, options?: IResolveContentOptions): TPromise<IContent> {
 		return TPromise.as({
 			resource: resource,
-			value: 'Hello Html',
+			value: this.content,
 			etag: 'index.txt',
 			encoding: 'utf8',
 			mtime: Date.now(),
@@ -697,7 +699,7 @@ export class TestFileService implements IFileService {
 			value: {
 				on: (event: string, callback: Function): void => {
 					if (event === 'data') {
-						callback('Hello Html');
+						callback(this.content);
 					}
 					if (event === 'end') {
 						callback();
@@ -709,10 +711,6 @@ export class TestFileService implements IFileService {
 			mtime: Date.now(),
 			name: paths.basename(resource.fsPath)
 		});
-	}
-
-	resolveContents(resources: URI[]): TPromise<IContent[]> {
-		return TPromise.as(null);
 	}
 
 	updateContent(resource: URI, value: string, options?: IUpdateContentOptions): TPromise<IFileStat> {
@@ -764,9 +762,7 @@ export class TestFileService implements IFileService {
 	watchFileChanges(resource: URI): void {
 	}
 
-	unwatchFileChanges(resource: URI): void;
-	unwatchFileChanges(fsPath: string): void;
-	unwatchFileChanges(arg1: any): void {
+	unwatchFileChanges(resource: URI): void {
 	}
 
 	updateOptions(options: any): void {
@@ -882,7 +878,11 @@ export class TestWindowService implements IWindowService {
 		return TPromise.as(void 0);
 	}
 
-	newWorkspace(): TPromise<void> {
+	createAndOpenWorkspace(folders?: string[], path?: string): TPromise<void> {
+		return TPromise.as(void 0);
+	}
+
+	saveAndOpenWorkspace(path: string): TPromise<void> {
 		return TPromise.as(void 0);
 	}
 
@@ -923,6 +923,10 @@ export class TestWindowService implements IWindowService {
 	}
 
 	onWindowTitleDoubleClick(): TPromise<void> {
+		return TPromise.as(void 0);
+	}
+
+	show(): TPromise<void> {
 		return TPromise.as(void 0);
 	}
 
@@ -1018,7 +1022,11 @@ export class TestWindowsService implements IWindowsService {
 		return TPromise.as(void 0);
 	}
 
-	newWorkspace(windowId: number): TPromise<void> {
+	createAndOpenWorkspace(windowId: number, folders?: string[], path?: string): TPromise<void> {
+		return TPromise.as(void 0);
+	}
+
+	saveAndOpenWorkspace(windowId: number, path: string): TPromise<void> {
 		return TPromise.as(void 0);
 	}
 

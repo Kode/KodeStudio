@@ -529,4 +529,19 @@ suite('SnippetParser', () => {
 			return true;
 		});
 	});
+
+	test('Snippets: make parser ignore `${0|choice|}`, #31599', function () {
+		assertTextAndMarker('${0|foo,bar|}', '${0|foo,bar|}', Text);
+		assertTextAndMarker('${1|foo,bar|}', 'foo', Placeholder);
+	});
+
+	test('[BUG] HTML attribute suggestions: Snippet session does not have end-position set, #33147', function () {
+
+		const { placeholders } = new SnippetParser().parse('src="$1"', true);
+		const [first, second] = placeholders;
+
+		assert.equal(placeholders.length, 2);
+		assert.equal(first.index, 1);
+		assert.equal(second.index, 0);
+	});
 });

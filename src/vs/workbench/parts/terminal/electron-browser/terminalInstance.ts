@@ -13,7 +13,7 @@ import * as dom from 'vs/base/browser/dom';
 import Event, { Emitter } from 'vs/base/common/event';
 import Uri from 'vs/base/common/uri';
 import { WindowsShellHelper } from 'vs/workbench/parts/terminal/electron-browser/windowsShellHelper';
-import XTermTerminal = require('xterm');
+import { Terminal as XTermTerminal } from 'xterm';
 import { Dimension } from 'vs/base/browser/builder';
 import { IContextKeyService, IContextKey } from 'vs/platform/contextkey/common/contextkey';
 import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
@@ -157,7 +157,7 @@ export class TerminalInstance implements ITerminalInstance {
 		});
 
 		this._initDimensions();
-		this._createProcess(this._shellLaunchConfig);
+		this._createProcess();
 		this._createXterm();
 
 		if (platform.isWindows) {
@@ -223,7 +223,7 @@ export class TerminalInstance implements ITerminalInstance {
 			// it gets removed and then added back to the DOM (resetting scrollTop to 0).
 			// Upstream issue: https://github.com/sourcelair/xterm.js/issues/291
 			if (this._xterm) {
-				this._xterm.emit('scroll', this._xterm.ydisp);
+				this._xterm.emit('scroll', this._xterm.buffer.ydisp);
 			}
 		}
 
@@ -280,7 +280,7 @@ export class TerminalInstance implements ITerminalInstance {
 		dom.addClass(this._wrapperElement, 'terminal-wrapper');
 		this._xtermElement = document.createElement('div');
 
-		this._xterm.open(this._xtermElement, false);
+		this._xterm.open(this._xtermElement);
 		this._xterm.attachCustomKeyEventHandler((event: KeyboardEvent) => {
 			// Disable all input if the terminal is exiting
 			if (this._isExiting) {
@@ -488,7 +488,7 @@ export class TerminalInstance implements ITerminalInstance {
 			// necessary if the number of rows in the terminal has decreased while it was in the
 			// background since scrollTop changes take no effect but the terminal's position does
 			// change since the number of visible rows decreases.
-			this._xterm.emit('scroll', this._xterm.ydisp);
+			this._xterm.emit('scroll', this._xterm.buffer.ydisp);
 		}
 	}
 
@@ -554,26 +554,41 @@ export class TerminalInstance implements ITerminalInstance {
 		return TerminalInstance._sanitizeCwd(cwd);
 	}
 
-	protected _createProcess(shell: IShellLaunchConfig): void {
+	protected _createProcess(): void {
 		const locale = this._configHelper.config.setLocaleVariables ? platform.locale : undefined;
-		if (!shell.executable) {
-			this._configHelper.mergeDefaultShellPathAndArgs(shell);
+		if (!this._shellLaunchConfig.executable) {
+			this._configHelper.mergeDefaultShellPathAndArgs(this._shellLaunchConfig);
 		}
 		this._initialCwd = this._getCwd(this._shellLaunchConfig, this._historyService.getLastActiveWorkspaceRoot());
-		const platformKey = platform.isWindows ? 'windows' : platform.isMacintosh ? 'osx' : 'linux';
-		const envFromConfig = { ...process.env, ...this._configHelper.config.env[platformKey] };
-		const env = TerminalInstance.createTerminalEnv(envFromConfig, shell, this._initialCwd, locale, this._cols, this._rows);
+		let envFromConfig: IStringDictionary<string>;
+		if (platform.isWindows) {
+			envFromConfig = { ...process.env };
+			for (let configKey in this._configHelper.config.env['windows']) {
+				let actualKey = configKey;
+				for (let envKey in envFromConfig) {
+					if (configKey.toLowerCase() === envKey.toLowerCase()) {
+						actualKey = envKey;
+						break;
+					}
+				}
+				envFromConfig[actualKey] = this._configHelper.config.env['windows'][configKey];
+			}
+		} else {
+			const platformKey = platform.isMacintosh ? 'osx' : 'linux';
+			envFromConfig = { ...process.env, ...this._configHelper.config.env[platformKey] };
+		}
+		const env = TerminalInstance.createTerminalEnv(envFromConfig, this._shellLaunchConfig, this._initialCwd, locale, this._cols, this._rows);
 		this._process = cp.fork(Uri.parse(require.toUrl('bootstrap')).fsPath, ['--type=terminal'], {
 			env,
 			cwd: Uri.parse(path.dirname(require.toUrl('../node/terminalProcess'))).fsPath
 		});
 		this._processState = ProcessState.LAUNCHING;
 
-		if (shell.name) {
-			this.setTitle(shell.name, false);
+		if (this._shellLaunchConfig.name) {
+			this.setTitle(this._shellLaunchConfig.name, false);
 		} else {
 			// Only listen for process title changes when a name is not provided
-			this.setTitle(shell.executable, true);
+			this.setTitle(this._shellLaunchConfig.executable, true);
 			this._messageTitleListener = (message) => {
 				if (message.type === 'title') {
 					this.setTitle(message.content ? message.content : '', true);
@@ -641,9 +656,9 @@ export class TerminalInstance implements ITerminalInstance {
 			this._processState = ProcessState.KILLED_BY_PROCESS;
 		}
 
-		// Only trigger wait on exit when the exit was triggered by the process,
-		// not through the `workbench.action.terminal.kill` command
-		if (this._processState === ProcessState.KILLED_BY_PROCESS && this._shellLaunchConfig.waitOnExit) {
+		// Only trigger wait on exit when the exit was *not* triggered by the
+		// user (via the `workbench.action.terminal.kill` command).
+		if (this._shellLaunchConfig.waitOnExit && this._processState !== ProcessState.KILLED_BY_USER) {
 			if (exitCode) {
 				this._xterm.writeln(exitCodeMessage);
 			}
@@ -667,7 +682,7 @@ export class TerminalInstance implements ITerminalInstance {
 						args = this._shellLaunchConfig.args;
 					} else if (this._shellLaunchConfig.args && this._shellLaunchConfig.args.length) {
 						args = ' ' + this._shellLaunchConfig.args.map(a => {
-							if (a.indexOf(' ') !== -1) {
+							if (typeof a === 'string' && a.indexOf(' ') !== -1) {
 								return `'${a}'`;
 							}
 							return a;
@@ -710,7 +725,8 @@ export class TerminalInstance implements ITerminalInstance {
 
 		// Initialize new process
 		const oldTitle = this._title;
-		this._createProcess(shell);
+		this._shellLaunchConfig = shell;
+		this._createProcess();
 		if (oldTitle !== this._title) {
 			this.setTitle(this._title, true);
 		}
@@ -768,7 +784,9 @@ export class TerminalInstance implements ITerminalInstance {
 	}
 
 	public onExit(listener: (exitCode: number) => void): lifecycle.IDisposable {
-		this._process.on('exit', listener);
+		if (this._process) {
+			this._process.on('exit', listener);
+		}
 		return {
 			dispose: () => {
 				if (this._process) {
@@ -890,6 +908,9 @@ export class TerminalInstance implements ITerminalInstance {
 	}
 
 	public setTitle(title: string, eventFromProcess: boolean): void {
+		if (!title) {
+			return;
+		}
 		if (eventFromProcess) {
 			title = path.basename(title);
 			if (platform.isWindows) {

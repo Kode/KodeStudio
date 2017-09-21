@@ -16,7 +16,7 @@ import MDDocumentSymbolProvider from './documentSymbolProvider';
 import { ExtensionContentSecurityPolicyArbiter, PreviewSecuritySelector } from './security';
 import { MDDocumentContentProvider, getMarkdownUri, isMarkdownFile } from './previewContentProvider';
 import { TableOfContentsProvider } from './tableOfContentsProvider';
-import { Logger } from "./logger";
+import { Logger } from './logger';
 
 interface IPackageInfo {
 	name: string;
@@ -174,7 +174,7 @@ export function activate(context: vscode.ExtensionContext) {
 			contentProvider.update(source);
 		} else if (vscode.window.activeTextEditor && isMarkdownFile(vscode.window.activeTextEditor.document)) {
 			contentProvider.update(getMarkdownUri(vscode.window.activeTextEditor.document.uri));
-		} else if (!vscode.window.activeTextEditor) {
+		} else {
 			// update all generated md documents
 			for (const document of vscode.workspace.textDocuments) {
 				if (document.uri.scheme === 'markdown') {

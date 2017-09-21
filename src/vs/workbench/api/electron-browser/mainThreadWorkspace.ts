@@ -6,40 +6,48 @@
 
 import { isPromiseCanceledError } from 'vs/base/common/errors';
 import URI from 'vs/base/common/uri';
-import { ISearchService, QueryType, ISearchQuery } from 'vs/platform/search/common/search';
+import { ISearchService, QueryType, ISearchQuery, ISearchProgressItem, ISearchComplete } from 'vs/platform/search/common/search';
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { IWorkbenchEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { ITextFileService } from 'vs/workbench/services/textfile/common/textfiles';
 import { ICommonCodeEditor, isCommonCodeEditor } from 'vs/editor/common/editorCommon';
 import { bulkEdit, IResourceEdit } from 'vs/editor/common/services/bulkEdit';
-import { TPromise } from 'vs/base/common/winjs.base';
-import { MainThreadWorkspaceShape, ExtHostWorkspaceShape, ExtHostContext } from '../node/extHost.protocol';
+import { TPromise, PPromise } from 'vs/base/common/winjs.base';
+import { MainThreadWorkspaceShape, ExtHostWorkspaceShape, ExtHostContext, MainContext, IExtHostContext } from '../node/extHost.protocol';
 import { ITextModelService } from 'vs/editor/common/services/resolverService';
 import { IFileService } from 'vs/platform/files/common/files';
-import { IThreadService } from 'vs/workbench/services/thread/common/threadService';
-import { IDisposable } from 'vs/base/common/lifecycle';
-import { RemoteFileService, IRemoteFileSystemProvider } from 'vs/workbench/services/files/electron-browser/remoteFileService';
+import { IDisposable, dispose, combinedDisposable } from 'vs/base/common/lifecycle';
+import { RemoteFileService } from 'vs/workbench/services/files/electron-browser/remoteFileService';
 import { Emitter } from 'vs/base/common/event';
+import { extHostNamedCustomer } from 'vs/workbench/api/electron-browser/extHostCustomers';
 
-
-export class MainThreadWorkspace extends MainThreadWorkspaceShape {
+@extHostNamedCustomer(MainContext.MainThreadWorkspace)
+export class MainThreadWorkspace implements MainThreadWorkspaceShape {
 
 	private readonly _toDispose: IDisposable[] = [];
 	private readonly _activeSearches: { [id: number]: TPromise<URI[]> } = Object.create(null);
 	private readonly _proxy: ExtHostWorkspaceShape;
 
 	constructor(
+		extHostContext: IExtHostContext,
 		@ISearchService private readonly _searchService: ISearchService,
 		@IWorkspaceContextService private readonly _contextService: IWorkspaceContextService,
 		@ITextFileService private readonly _textFileService: ITextFileService,
 		@IWorkbenchEditorService private readonly _editorService: IWorkbenchEditorService,
 		@ITextModelService private readonly _textModelResolverService: ITextModelService,
-		@IFileService private readonly _fileService: IFileService,
-		@IThreadService threadService: IThreadService
+		@IFileService private readonly _fileService: IFileService
 	) {
-		super();
-		this._proxy = threadService.get(ExtHostContext.ExtHostWorkspace);
+		this._proxy = extHostContext.get(ExtHostContext.ExtHostWorkspace);
 		this._contextService.onDidChangeWorkspaceRoots(this._onDidChangeWorkspace, this, this._toDispose);
+	}
+
+	dispose(): void {
+		dispose(this._toDispose);
+
+		for (let requestId in this._activeSearches) {
+			const search = this._activeSearches[requestId];
+			search.cancel();
+		}
 	}
 
 	// --- workspace ---
@@ -116,7 +124,9 @@ export class MainThreadWorkspace extends MainThreadWorkspaceShape {
 
 	// --- EXPERIMENT: workspace provider
 
-	private _provider = new Map<number, [IRemoteFileSystemProvider, Emitter<URI>]>();
+	private _idPool: number = 0;
+	private readonly _provider = new Map<number, [IDisposable, Emitter<URI>]>();
+	private readonly _searchSessions = new Map<number, { resolve: (result: ISearchComplete) => void, reject: Function, progress: (item: ISearchProgressItem) => void, matches: URI[] }>();
 
 	$registerFileSystemProvider(handle: number, authority: string): void {
 		if (!(this._fileService instanceof RemoteFileService)) {
@@ -132,13 +142,60 @@ export class MainThreadWorkspace extends MainThreadWorkspaceShape {
 				return this._proxy.$storeFile(handle, resource, value);
 			}
 		};
-		this._provider.set(handle, [provider, emitter]);
-		this._fileService.registerProvider(authority, provider);
+		const searchProvider = {
+			search: (query) => {
+				if (query.type !== QueryType.File) {
+					return undefined;
+				}
+				const session = ++this._idPool;
+				return new PPromise<any, any>((resolve, reject, progress) => {
+					this._searchSessions.set(session, { resolve, reject, progress, matches: [] });
+					this._proxy.$startSearch(handle, session, query.filePattern);
+				}, () => {
+					this._proxy.$cancelSearch(handle, session);
+				});
+			}
+		};
+		const registrations = combinedDisposable([
+			this._fileService.registerProvider(authority, provider),
+			this._searchService.registerSearchResultProvider(searchProvider),
+		]);
+		this._provider.set(handle, [registrations, emitter]);
+	}
+
+	$unregisterFileSystemProvider(handle: number): void {
+		if (this._provider.has(handle)) {
+			dispose(this._provider.get(handle)[0]);
+			this._provider.delete(handle);
+		}
 	}
 
 	$onFileSystemChange(handle: number, resource: URI) {
 		const [, emitter] = this._provider.get(handle);
 		emitter.fire(resource);
 	};
+
+	$updateSearchSession(session: number, data: URI): void {
+		if (this._searchSessions.has(session)) {
+			this._searchSessions.get(session).progress({ resource: data });
+			this._searchSessions.get(session).matches.push(data);
+		}
+	}
+
+	$finishSearchSession(session: number, err?: any): void {
+		if (this._searchSessions.has(session)) {
+			const { matches, resolve, reject } = this._searchSessions.get(session);
+			this._searchSessions.delete(session);
+			if (err) {
+				reject(err);
+			} else {
+				resolve({
+					limitHit: false,
+					stats: undefined,
+					results: matches.map(resource => ({ resource }))
+				});
+			}
+		}
+	}
 }
 

@@ -18,10 +18,11 @@ import { IConfigurationService } from 'vs/platform/configuration/common/configur
 
 const pathPrefix = '(\\.\\.?|\\~)';
 const pathSeparatorClause = '\\/';
-const excludedPathCharactersClause = '[^\\0\\s!$`&*()\\[\\]+\'":;]'; // '":; are allowed in paths but they are often separators so ignore them
-const escapedExcludedPathCharactersClause = '(\\\\s|\\\\!|\\\\$|\\\\`|\\\\&|\\\\*|(|)|\\+)';
+// '":; are allowed in paths but they are often separators so ignore them
+// Also disallow \\ to prevent a catastropic backtracking case #24798
+const excludedPathCharactersClause = '[^\\0\\s!$`&*()\\[\\]+\'":;\\\\]';
 /** A regex that matches paths in the form /foo, ~/foo, ./foo, ../foo, foo/bar */
-const unixLocalLinkClause = '((' + pathPrefix + '|(' + excludedPathCharactersClause + '|' + escapedExcludedPathCharactersClause + ')+)?(' + pathSeparatorClause + '(' + excludedPathCharactersClause + '|' + escapedExcludedPathCharactersClause + ')+)+)';
+const unixLocalLinkClause = '((' + pathPrefix + '|(' + excludedPathCharactersClause + ')+)?(' + pathSeparatorClause + '(' + excludedPathCharactersClause + ')+)+)';
 
 const winDrivePrefix = '[a-zA-Z]:';
 const winPathPrefix = '(' + winDrivePrefix + '|\\.\\.?|\\~)';
@@ -41,7 +42,7 @@ const lineAndColumnClause = [
 
 // Changing any regex may effect this value, hence changes this as well if required.
 const winLineAndColumnMatchIndex = 12;
-const unixLineAndColumnMatchIndex = 15;
+const unixLineAndColumnMatchIndex = 23;
 
 // Each line and column clause have 6 groups (ie no. of expressions in round brackets)
 const lineAndColumnClauseGroupCount = 6;

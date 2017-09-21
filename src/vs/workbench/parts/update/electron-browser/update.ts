@@ -10,7 +10,7 @@ import severity from 'vs/base/common/severity';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { IAction, Action } from 'vs/base/common/actions';
 import { mapEvent } from 'vs/base/common/event';
-import { IDisposable, dispose } from 'vs/base/common/lifecycle';
+import { IDisposable, dispose, empty as EmptyDisposable } from 'vs/base/common/lifecycle';
 import { Separator } from 'vs/base/browser/ui/actionbar/actionbar';
 import { IMessageService, CloseAction, Severity } from 'vs/platform/message/common/message';
 import pkg from 'vs/platform/node/package';
@@ -280,7 +280,7 @@ export class Win3264BitContribution implements IWorkbenchContribution {
 			: Win3264BitContribution.URL;
 
 		messageService.show(Severity.Info, {
-			message: nls.localize('64bitisavailable', "{0} for Windows 64 bits is now available!", product.nameShort),
+			message: nls.localize('64bitisavailable', "{0} for 64-bit Windows is now available!", product.nameShort),
 			actions: [
 				LinkAction('update.show64bitreleasenotes', nls.localize('learn more', "Learn More"), url),
 				CloseAction,
@@ -312,6 +312,8 @@ export class UpdateContribution implements IGlobalActivity {
 	get id() { return 'vs.update'; }
 	get name() { return ''; }
 	get cssClass() { return 'update-activity'; }
+
+	private badgeDisposable: IDisposable = EmptyDisposable;
 	private disposables: IDisposable[] = [];
 
 	constructor(
@@ -331,6 +333,9 @@ export class UpdateContribution implements IGlobalActivity {
 		updateService.onError(this.onError, this, this.disposables);
 		updateService.onUpdateNotAvailable(this.onUpdateNotAvailable, this, this.disposables);
 
+		updateService.onStateChange(this.onUpdateStateChange, this, this.disposables);
+		this.onUpdateStateChange(this.updateService.state);
+
 		/*
 		The `update/lastKnownVersion` and `update/updateNotificationTime` storage keys are used in
 		combination to figure out when to show a message to the user that he should update.
@@ -349,10 +354,20 @@ export class UpdateContribution implements IGlobalActivity {
 		}
 	}
 
-	private onUpdateAvailable(version: string): void {
-		const badge = new NumberBadge(1, () => nls.localize('updateIsReady', "New {0} update available.", product.nameShort));
-		this.activityBarService.showGlobalActivity(this.id, badge);
+	private onUpdateStateChange(state: UpdateState): void {
+		this.badgeDisposable.dispose();
 
+		const isUpdateAvailable = isLinux
+			? state === UpdateState.UpdateAvailable
+			: state === UpdateState.UpdateDownloaded;
+
+		if (isUpdateAvailable) {
+			const badge = new NumberBadge(1, () => nls.localize('updateIsReady', "New {0} update available.", product.nameShort));
+			this.badgeDisposable = this.activityBarService.showGlobalActivity(this.id, badge);
+		}
+	}
+
+	private onUpdateAvailable(version: string): void {
 		const currentVersion = product.commit;
 		const currentMillis = new Date().getTime();
 		const lastKnownVersion = this.storageService.get('update/lastKnownVersion', StorageScope.GLOBAL);

@@ -333,20 +333,28 @@ function walk(marker: Marker[], visitor: (marker: Marker) => boolean): void {
 
 export class TextmateSnippet extends Marker {
 
-	private _placeholders: Placeholder[];
+	private _placeholders: { all: Placeholder[], last: Placeholder };
 
-	get placeholders(): Placeholder[] {
+	get placeholderInfo() {
 		if (!this._placeholders) {
 			// fill in placeholders
-			this._placeholders = [];
-			this.walk(candidate => {
+			let all: Placeholder[] = [];
+			let last: Placeholder;
+			this.walk(function (candidate) {
 				if (candidate instanceof Placeholder) {
-					this.placeholders.push(candidate);
+					all.push(candidate);
+					last = !last || last.index < candidate.index ? candidate : last;
 				}
 				return true;
 			});
+			this._placeholders = { all, last };
 		}
 		return this._placeholders;
+	}
+
+	get placeholders(): Placeholder[] {
+		const { all } = this.placeholderInfo;
+		return all;
 	}
 
 	offset(marker: Marker): number {
@@ -452,8 +460,10 @@ export class SnippetParser {
 		// that has a value defines the value for all placeholders with that index
 		const placeholderDefaultValues = new Map<number, Marker[]>();
 		const incompletePlaceholders: Placeholder[] = [];
+		let placeholderCount = 0;
 		snippet.walk(marker => {
 			if (marker instanceof Placeholder) {
+				placeholderCount += 1;
 				if (marker.isFinalTabstop) {
 					placeholderDefaultValues.set(0);
 				} else if (!placeholderDefaultValues.has(marker.index) && marker.children.length > 0) {
@@ -474,10 +484,11 @@ export class SnippetParser {
 			}
 		}
 
-		if (
-			!placeholderDefaultValues.has(0) && // there is no final tabstop
-			(insertFinalTabstop && placeholderDefaultValues.size > 0 || enforceFinalTabstop)
-		) {
+		if (!enforceFinalTabstop) {
+			enforceFinalTabstop = placeholderCount > 0 && insertFinalTabstop;
+		}
+
+		if (!placeholderDefaultValues.has(0) && enforceFinalTabstop) {
 			// the snippet uses placeholders but has no
 			// final tabstop defined -> insert at the end
 			snippet.appendChild(new Placeholder(0));
@@ -578,7 +589,7 @@ export class SnippetParser {
 				placeholder.children.forEach(parent.appendChild, parent);
 				return true;
 			}
-		} else if (this._accept(TokenType.Pipe)) {
+		} else if (placeholder.index > 0 && this._accept(TokenType.Pipe)) {
 			// ${1|one,two,three|}
 			const choice = new Choice();
 
