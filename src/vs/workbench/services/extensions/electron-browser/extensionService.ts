@@ -65,6 +65,13 @@ function getExtraDevSystemExtensionsRoot(): string {
 	}
 	return _ExtraDevSystemExtensionsRoot;
 }
+let _KodeExtensionsRoot: string = null;
+function getKodeExtensionsRoot(): string {
+	if (!_KodeExtensionsRoot) {
+		_KodeExtensionsRoot = path.normalize(path.join(getPathFromAmdModule(require, ''), '..', 'kodeExtensions'));
+	}
+	return _KodeExtensionsRoot;
+}
 
 interface IBuiltInExtension {
 	name: string;
@@ -941,6 +948,15 @@ export class ExtensionService extends Disposable implements IExtensionService {
 				});
 			}
 
+			const kodeExtensions = this._scanExtensionsWithCache(
+				windowService,
+				notificationService,
+				environmentService,
+				BUILTIN_MANIFEST_CACHE_FILE,
+				new ExtensionScannerInput(version, commit, locale, devMode, getKodeExtensionsRoot(), true, false, translations),
+				log
+			);
+
 			const userExtensions = (
 				extensionEnablementService.allUserExtensionsDisabled || !environmentService.extensionsPath
 					? TPromise.as([])
@@ -962,7 +978,7 @@ export class ExtensionService extends Disposable implements IExtensionService {
 				);
 			}
 
-			return TPromise.join([finalBuiltinExtensions, userExtensions, developedExtensions]).then((extensionDescriptions: IExtensionDescription[][]) => {
+			return TPromise.join([finalBuiltinExtensions, kodeExtensions, userExtensions, developedExtensions]).then((extensionDescriptions: IExtensionDescription[][]) => {
 				const system = extensionDescriptions[0];
 				const user = extensionDescriptions[1];
 				const development = extensionDescriptions[2];
