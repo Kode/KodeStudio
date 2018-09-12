@@ -24,9 +24,9 @@ import {
 	EnableAllAction, EnableAllWorkpsaceAction, DisableAllAction, DisableAllWorkpsaceAction, CheckForUpdatesAction, ShowLanguageExtensionsAction, ShowAzureExtensionsAction, EnableAutoUpdateAction, DisableAutoUpdateAction, ConfigureRecommendedExtensionsCommandsContributor, OpenExtensionsFolderAction, InstallVSIXAction, ReinstallAction
 } from 'vs/workbench/parts/extensions/electron-browser/extensionsActions';
 import { ExtensionsInput } from 'vs/workbench/parts/extensions/common/extensionsInput';
-import { ViewletRegistry, Extensions as ViewletExtensions, ViewletDescriptor } from 'vs/workbench/browser/viewlet';
+//import { ViewletRegistry, Extensions as ViewletExtensions, ViewletDescriptor } from 'vs/workbench/browser/viewlet';
 import { ExtensionEditor } from 'vs/workbench/parts/extensions/electron-browser/extensionEditor';
-import { StatusUpdater, ExtensionsViewlet, MaliciousExtensionChecker, ExtensionsViewletViewsContribution } from 'vs/workbench/parts/extensions/electron-browser/extensionsViewlet';
+import { StatusUpdater, /*ExtensionsViewlet,*/ MaliciousExtensionChecker, ExtensionsViewletViewsContribution } from 'vs/workbench/parts/extensions/electron-browser/extensionsViewlet';
 import { IQuickOpenRegistry, Extensions, QuickOpenHandlerDescriptor } from 'vs/workbench/browser/quickopen';
 import { IConfigurationRegistry, Extensions as ConfigurationExtensions, ConfigurationScope } from 'vs/platform/configuration/common/configurationRegistry';
 import * as jsonContributionRegistry from 'vs/platform/jsonschemas/common/jsonContributionRegistry';
@@ -114,16 +114,16 @@ Registry.as<IEditorInputFactoryRegistry>(EditorInputExtensions.EditorInputFactor
 
 
 // Viewlet
-const viewletDescriptor = new ViewletDescriptor(
-	ExtensionsViewlet,
-	VIEWLET_ID,
-	localize('extensions', "Extensions"),
-	'extensions',
-	4
-);
+//const viewletDescriptor = new ViewletDescriptor(
+//	ExtensionsViewlet,
+//	VIEWLET_ID,
+//	localize('extensions', "Extensions"),
+//	'extensions',
+//	4
+//);
 
-Registry.as<ViewletRegistry>(ViewletExtensions.Viewlets)
-	.registerViewlet(viewletDescriptor);
+//Registry.as<ViewletRegistry>(ViewletExtensions.Viewlets)
+//	.registerViewlet(viewletDescriptor);
 
 // Global actions
 const actionRegistry = Registry.as<IWorkbenchActionRegistry>(WorkbenchActionExtensions.WorkbenchActions);
