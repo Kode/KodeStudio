@@ -28,6 +28,7 @@ export interface IProductConfiguration {
 	settingsSearchUrl?: string;
 	experimentsUrl?: string;
 	date: string;
+	kodeStudioVersion: string;
 	extensionsGallery: {
 		serviceUrl: string;
 		itemUrl: string;

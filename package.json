@@ -1,9 +1,9 @@
 {
-  "name": "code-oss-dev",
+  "name": "kodestudio",
   "version": "1.28.0",
   "distro": "c140338a23ed045af10f275b62c2bb794ac81ce2",
   "author": {
-    "name": "Microsoft Corporation"
+    "name": "Kode Studio team"
   },
   "main": "./out/main",
   "private": true,
