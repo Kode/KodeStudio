@@ -43,7 +43,7 @@ import { ILabelService } from 'vs/platform/label/common/label';
 used();
 
 const configurationKey = 'workbench.startupEditor';
-const oldConfigurationKey = 'workbench.welcome.enabled';
+// const oldConfigurationKey = 'workbench.welcome.enabled';
 const telemetryFrom = 'welcomePage';
 
 export class WelcomePageContribution implements IWorkbenchContribution {
@@ -71,14 +71,15 @@ export class WelcomePageContribution implements IWorkbenchContribution {
 }
 
 function isWelcomePageEnabled(configurationService: IConfigurationService, contextService: IWorkspaceContextService) {
-	const startupEditor = configurationService.inspect(configurationKey);
+	/*const startupEditor = configurationService.inspect(configurationKey);
 	if (!startupEditor.user && !startupEditor.workspace) {
 		const welcomeEnabled = configurationService.inspect(oldConfigurationKey);
 		if (welcomeEnabled.value !== undefined && welcomeEnabled.value !== null) {
 			return welcomeEnabled.value;
 		}
 	}
-	return startupEditor.value === 'welcomePage' || startupEditor.value === 'welcomePageInEmptyWorkbench' && contextService.getWorkbenchState() === WorkbenchState.EMPTY;
+	return startupEditor.value === 'welcomePage' || startupEditor.value === 'welcomePageInEmptyWorkbench' && contextService.getWorkbenchState() === WorkbenchState.EMPTY;*/
+	return false;
 }
 
 export class WelcomePageAction extends Action {
