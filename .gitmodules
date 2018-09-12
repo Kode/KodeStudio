@@ -1,0 +1,44 @@
+[submodule "kodeExtensions/kha"]
+	path = kodeExtensions/kha
+	url = https://github.com/Kode/vscode-kha.git
+	branch = master
+[submodule "kodeExtensions/electron-debug"]
+	path = kodeExtensions/electron-debug
+	url = https://github.com/Kode/vscode-electron-debug.git
+	branch = master
+[submodule "kodeExtensions/krafix"]
+	path = kodeExtensions/krafix
+	url = https://github.com/Kode/vscode-krafix.git
+	branch = master
+[submodule "kodeExtensions/krom"]
+	path = kodeExtensions/krom
+	url = https://github.com/Kode/vscode-krom.git
+	branch = master
+[submodule "kodeExtensions/krom-debug"]
+	path = kodeExtensions/krom-debug
+	url = https://github.com/Kode/vscode-krom-debug.git
+	branch = master
+[submodule "kodeExtensions/checkstyle"]
+	path = kodeExtensions/checkstyle
+	url = https://github.com/Kode/vscode-checkstyle.git
+	branch = master
+[submodule "kodeExtensions/haxe"]
+	path = kodeExtensions/haxe
+	url = https://github.com/Kode/vshaxe.git
+	branch = master
+[submodule "kodeExtensions/codedox"]
+	path = kodeExtensions/codedox
+	url = https://github.com/Kode/codedox.git
+	branch = master
+[submodule "kodeExtensions/flash-debug"]
+	path = kodeExtensions/flash-debug
+	url = https://github.com/Kode/flash-debugger.git
+	branch = master
+[submodule "kodeExtensions/hashlink-debug"]
+	path = kodeExtensions/hashlink-debug
+	url = https://github.com/Kode/hashlink-debugger.git
+	branch = master
+[submodule "kodeExtensions/hxcpp-debug"]
+	path = kodeExtensions/hxcpp-debug
+	url = https://github.com/Kode/hxcpp-debugger.git
+	branch = master
