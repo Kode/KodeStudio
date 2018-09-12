@@ -127,8 +127,8 @@ function darwinBundleDocumentType(extensions, icon) {
 const config = {
 	version: getElectronVersion(),
 	productAppName: product.nameLong,
-	companyName: 'Microsoft Corporation',
-	copyright: 'Copyright (C) 2018 Microsoft. All rights reserved',
+	companyName: 'Kode Studio team',
+	copyright: 'Copyright (C) 2018 Microsoft and the Kode Studio team. All rights reserved',
 	darwinIcon: 'resources/darwin/code.icns',
 	darwinBundleIdentifier: product.darwinBundleIdentifier,
 	darwinApplicationCategoryType: 'public.app-category.developer-tools',
