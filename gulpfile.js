@@ -27,14 +27,14 @@ gulp.task('watch-client-build', ['clean-client-build'], compilation.watchTask('o
 gulp.task('default', ['compile']);
 
 // All
-gulp.task('clean', ['clean-client', 'clean-extensions']);
-gulp.task('compile', ['monaco-typecheck', 'compile-client', 'compile-extensions']);
-gulp.task('watch', [/* 'monaco-typecheck-watch', */ 'watch-client', 'watch-extensions']);
+gulp.task('clean', ['clean-client', 'clean-extensions', 'clean-kode']);
+gulp.task('compile', ['monaco-typecheck', 'compile-client', 'compile-extensions', 'compile-kode']);
+gulp.task('watch', [/* 'monaco-typecheck-watch', */ 'watch-client', 'watch-extensions', 'watch-kode']);
 
 // All Build
-gulp.task('clean-build', ['clean-client-build', 'clean-extensions-build']);
-gulp.task('compile-build', ['compile-client-build', 'compile-extensions-build']);
-gulp.task('watch-build', ['watch-client-build', 'watch-extensions-build']);
+gulp.task('clean-build', ['clean-client-build', 'clean-extensions-build', 'clean-kode-build']);
+gulp.task('compile-build', ['compile-client-build', 'compile-extensions-build', 'compile-kode-build']);
+gulp.task('watch-build', ['watch-client-build', 'watch-extensions-build', 'watch-kode-build']);
 
 process.on('unhandledRejection', (reason, p) => {
 	console.log('Unhandled Rejection at: Promise', p, 'reason:', reason);

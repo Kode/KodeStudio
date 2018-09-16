@@ -86,7 +86,7 @@ const BUNDLED_FILE_HEADER = [
 ].join('\n');
 
 gulp.task('clean-optimized-vscode', util.rimraf('out-vscode'));
-gulp.task('optimize-vscode', ['clean-optimized-vscode', 'compile-build', 'compile-extensions-build'], common.optimizeTask({
+gulp.task('optimize-vscode', ['clean-optimized-vscode', 'compile-build', 'compile-extensions-build', 'compile-kode-build'], common.optimizeTask({
 	src: 'out-build',
 	entryPoints: vscodeEntryPoints,
 	otherSources: [],
@@ -228,6 +228,8 @@ function packageTask(platform, arch, opts) {
 		const root = path.resolve(path.join(__dirname, '..'));
 
 		const sources = es.merge(src, ext.packageExtensionsStream({
+			sourceMappingURLBase: sourceMappingURLBase
+		}), ext.packageKodeExtensionsStream({
 			sourceMappingURLBase: sourceMappingURLBase
 		}));
 
