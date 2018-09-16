@@ -287,3 +287,28 @@ export function packageExtensionsStream(optsIn?: IPackageExtensionsOptions): Nod
 		.pipe(util2.setExecutableBit(['**/*.sh']))
 		.pipe(filter(['**', '!**/*.js.map']));
 }
+
+export function packageKodeExtensionsStream(opts?: IPackageExtensionsOptions): NodeJS.ReadWriteStream {
+	opts = opts || {};
+
+	const localExtensionDescriptions = (<string[]>glob.sync('kodeExtensions/*/package.json'))
+		.map(manifestPath => {
+			const extensionPath = path.dirname(path.join(root, manifestPath));
+			const extensionName = path.basename(extensionPath);
+			return { name: extensionName, path: extensionPath };
+		})
+		.filter(({ name }) => excludedExtensions.indexOf(name) === -1)
+		.filter(({ name }) => opts.desiredExtensions ? opts.desiredExtensions.indexOf(name) >= 0 : true)
+		.filter(({ name }) => builtInExtensions.every(b => b.name !== name));
+
+	const localExtensions = es.merge(...localExtensionDescriptions.map(extension => {
+		return fromLocal(extension.path, opts.sourceMappingURLBase)
+			.pipe(rename(p => p.dirname = `kodeExtensions/${extension.name}/${p.dirname}`));
+	}));
+
+	const localExtensionDependencies = gulp.src('kodeExtensions/node_modules/**', { base: '.' });
+
+	return es.merge(localExtensions, localExtensionDependencies)
+		.pipe(util2.setExecutableBit(['**/*.sh']))
+		.pipe(filter(['**', '!**/*.js.map']));
+}
