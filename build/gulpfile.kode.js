@@ -41,7 +41,7 @@ async function compile() {
 		await execute('npm install', path.join('kodeExtensions', ext));
 
 		if (ext === 'haxe') {
-			await execute('haxelib run vshaxe-build -t vshaxe -t language-server-tests -t tm-language', path.join('kodeExtensions', ext));
+			await execute('haxelib run vshaxe-build --target vshaxe --mode both', path.join('kodeExtensions', ext));
 		}
 		else if (fs.existsSync(path.join('kodeExtensions', ext, 'build-release.hxml'))) {
 			await execute('haxe build-release.hxml', path.join('kodeExtensions', ext));
