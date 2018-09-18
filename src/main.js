@@ -41,8 +41,16 @@ function findKhaAppParameter() {
 	return null;
 }
 
+// start in khamake mode
+if (process.argv[1] === '--khamake') {
+	const { fork } = require('child_process');
+	const forked = fork(process.argv[2], process.argv.slice(3));
+	forked.on('exit', () => {
+		app.quit();
+	});
+}
 // start in Kha debug mode
-if (findKhaAppParameter()) {
+else if (findKhaAppParameter()) {
 	try {
 		// Override app name and version.
 		var file = findKhaAppParameter();
