@@ -705,14 +705,16 @@ export class ExtensionService extends Disposable implements IExtensionService {
 			console.error(err);
 		}
 
-		notificationService.prompt(
+		// Deactivated because it triggers in Kode Studio for the bundled extensions
+		// TODO: Investigate
+		/*notificationService.prompt(
 			Severity.Error,
 			nls.localize('extensionCache.invalid', "Extensions have been modified on disk. Please reload the window."),
 			[{
 				label: nls.localize('reloadWindow', "Reload Window"),
 				run: () => windowService.reloadWindow()
 			}]
-		);
+		);*/
 	}
 
 	private static async _readExtensionCache(environmentService: IEnvironmentService, cacheKey: string): Promise<IExtensionCacheData> {
