@@ -229,9 +229,9 @@ function packageExtensionsStream(optsIn) {
 }
 exports.packageExtensionsStream = packageExtensionsStream;
 function packageKodeExtensionsStream(opts) {
-    opts = opts || {};
-    var localExtensionDescriptions = glob.sync('kodeExtensions/*/package.json')
-        .map(function (manifestPath) {
+    //opts = opts || {};
+    //var localExtensionDescriptions = glob.sync('kodeExtensions/*/package.json')
+    /*    .map(function (manifestPath) {
         var extensionPath = path.dirname(path.join(root, manifestPath));
         var extensionName = path.basename(extensionPath);
         return { name: extensionName, path: extensionPath };
@@ -252,9 +252,9 @@ function packageKodeExtensionsStream(opts) {
         return fromLocal(extension.path, opts.sourceMappingURLBase)
             .pipe(rename(function (p) { return p.dirname = "kodeExtensions/" + extension.name + "/" + p.dirname; }));
     }));
-    var localExtensionDependencies = gulp.src('kodeExtensions/node_modules/**', { base: '.' });
-    return es.merge(localExtensions, localExtensionDependencies)
-        .pipe(util2.setExecutableBit(['**/*.sh']))
-        .pipe(filter(['**', '!**/*.js.map']));
+    var localExtensionDependencies = gulp.src('kodeExtensions/node_modules/**', { base: '.' });*/
+    return es.merge();//localExtensions, localExtensionDependencies)
+        //.pipe(util2.setExecutableBit(['**/*.sh']))
+        //.pipe(filter(['**', '!**/*.js.map']));
 }
 exports.packageKodeExtensionsStream = packageKodeExtensionsStream;
