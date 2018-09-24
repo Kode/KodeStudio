@@ -208,8 +208,7 @@ export interface PresentationOptions {
 
 export enum RuntimeType {
 	Shell = 1,
-	Process = 2,
-	Node = 3
+	Process = 2
 }
 
 export namespace RuntimeType {
@@ -219,8 +218,6 @@ export namespace RuntimeType {
 				return RuntimeType.Shell;
 			case 'process':
 				return RuntimeType.Process;
-			case 'node':
-				return RuntimeType.Node;
 			default:
 				return RuntimeType.Process;
 		}
