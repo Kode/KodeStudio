@@ -171,7 +171,7 @@ const group: IJSONSchema = {
 
 const taskType: IJSONSchema = {
 	type: 'string',
-	enum: ['shell', 'process', 'node'],
+	enum: ['shell', 'process'],
 	default: 'shell',
 	description: nls.localize('JsonSchema.tasks.type', 'Defines whether the task is run as a process or as a command inside a shell.')
 };
