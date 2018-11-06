@@ -45,8 +45,8 @@ function findKhaAppParameter() {
 if (process.argv[1] === '--khamake') {
 	const { fork } = require('child_process');
 	const forked = fork(process.argv[2], process.argv.slice(3));
-	forked.on('exit', () => {
-		app.quit();
+	forked.on('exit', (code) => {
+		app.exit(code);
 	});
 }
 // start in Kha debug mode
