@@ -8,6 +8,7 @@ import * as fs from 'fs';
 import * as glob from 'glob';
 import * as gulp from 'gulp';
 import * as path from 'path';
+import * as os from 'os';
 import { Stream } from 'stream';
 import * as File from 'vinyl';
 import * as vsce from 'vsce';
@@ -315,26 +316,27 @@ export function packageExtensionsStream(opts?: IPackageExtensionsOptions): NodeJ
 }
 
 export function packageKodeExtensionsStream(opts?: IPackageExtensionsOptions): NodeJS.ReadWriteStream {
-	opts = opts || {};
+	const os = require('os');
 
-	const localExtensionDescriptions = (<string[]>glob.sync('kodeExtensions/*/package.json'))
-		.map(manifestPath => {
-			const extensionPath = path.dirname(path.join(root, manifestPath));
-			const extensionName = path.basename(extensionPath);
-			return { name: extensionName, path: extensionPath };
-		})
-		.filter(({ name }) => excludedExtensions.indexOf(name) === -1)
-		.filter(({ name }) => opts.desiredExtensions ? opts.desiredExtensions.indexOf(name) >= 0 : true)
-		.filter(({ name }) => builtInExtensions.every(b => b.name !== name));
+	const allFilters = [
+		{sys: 'linux-arm', glob: '!**/*-linuxarm'},
+		{sys: 'linux-ia32', glob: '!**/*-linux32'},
+		{sys: 'linux-x64', glob: '!**/*-linux64'},
+		{sys: 'osx-x64', glob: '!**/*-osx'},
+		{sys: 'win32-x64', glob: '!**/*.exe'},
+		{sys: 'win32-x64', glob: '!**/*.dll'}
+	];
 
-	const localExtensions = es.merge(...localExtensionDescriptions.map(extension => {
-		return fromLocal(extension.path, opts.sourceMappingURLBase)
-			.pipe(rename(p => p.dirname = `kodeExtensions/${extension.name}/${p.dirname}`));
-	}));
+	const sys = os.platform() + '-' + os.arch();
 
-	const localExtensionDependencies = gulp.src('kodeExtensions/node_modules/**', { base: '.' });
+	let filters = ['**'];
+	for (const filter of allFilters) {
+		if (filter.sys !== sys) {
+			filters.push(filter.glob);
+		}
+	}
 
-	return es.merge(localExtensions, localExtensionDependencies)
-		.pipe(util2.setExecutableBit(['**/*.sh']))
-		.pipe(filter(['**', '!**/*.js.map']));
+	return gulp.src('kodeExtensions/**')
+		.pipe(filter(filters))
+		.pipe(rename((path) => { path.dirname = 'kodeExtensions/' + path.dirname; }));
 }
