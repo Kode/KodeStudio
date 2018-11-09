@@ -40,10 +40,18 @@ async function compile() {
 	const extensions = fs.readdirSync('kodeExtensions');
 	for (const ext of extensions) {
 		console.log(ext + ':');
-		await execute('npm install', path.join('kodeExtensions', ext));
+		if (ext !== 'hashlink-debug') {
+			await execute('npm install', path.join('kodeExtensions', ext));
+		}
 
 		if (ext === 'haxe') {
 			await execute('haxelib run vshaxe-build --target vshaxe --mode both', path.join('kodeExtensions', ext));
+		}
+		else if (ext === 'checkstyle') {
+			// compilation fails, add manually
+		}
+		else if (ext === 'hashlink-debug') {
+			// npm install fails
 		}
 		else if (fs.existsSync(path.join('kodeExtensions', ext, 'build-release.hxml'))) {
 			await execute('haxe build-release.hxml', path.join('kodeExtensions', ext));
@@ -58,8 +66,10 @@ async function compile() {
 			await execute('tsc', path.join('kodeExtensions', ext, 'src'));
 		}
 
-		deleteDirectory(path.join('kodeExtensions', ext, 'node_modules'));
-		await execute('npm install --production', path.join('kodeExtensions', ext));
+		if (ext !== 'hashlink-debug') {
+			deleteDirectory(path.join('kodeExtensions', ext, 'node_modules'));
+			await execute('npm install --production', path.join('kodeExtensions', ext));
+		}
 	}
 }
 
