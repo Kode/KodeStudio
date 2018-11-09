@@ -1,35 +1,37 @@
 const fs = require('fs');
 const path = require('path');
 const gulp = require('gulp');
-const tsb = require('gulp-tsb');
 const es = require('event-stream');
 const exec = require('child_process').exec;
 
-/*gulp.task('copy-kode-extensions', () => {
-	gulp.src('kodeExtensions/**')
-	.pipe(gulp.dest(path.join(process.cwd(), 'out-vscode', 'kodeExtensions')));
-});*/
+function deleteDirectory(dir) {
+	if (!fs.existsSync(dir)) {
+		return;
+	}
 
-const tsCompiler = tsb.create({
-	target: 'es6',
-	module: 'commonjs',
-	declaration: false
-});
-
-gulp.task('task', function (cb) {
-	exec('ping localhost', function (err, stdout, stderr) {
-		console.log(stdout);
-		console.log(stderr);
-		cb(err);
-	});
-});
+	for (const file of fs.readdirSync(dir)) {
+		const fullPath = path.join(dir, file);
+		if (fs.lstatSync(fullPath).isDirectory()) {
+			deleteDirectory(fullPath);
+		}
+		else {
+			fs.unlinkSync(fullPath);
+		}
+	}
+	fs.rmdirSync(dir);
+}
 
 function execute(command, cwd) {
 	return new Promise((resolve, reject) => {
 		exec(command, {cwd}, (error, stdout, stderr) => {
 			console.log(stdout);
 			console.log(stderr);
-			resolve();
+			if (error) {
+				reject(command + ' failed with code ' + error.code + '.');
+			}
+			else {
+				resolve();
+			}
 		});
 	});
 }
@@ -55,6 +57,9 @@ async function compile() {
 		else if (fs.existsSync(path.join('kodeExtensions', ext, 'src', 'tsconfig.json'))) {
 			await execute('tsc', path.join('kodeExtensions', ext, 'src'));
 		}
+
+		deleteDirectory(path.join('kodeExtensions', ext, 'node_modules'));
+		await execute('npm install --production', path.join('kodeExtensions', ext));
 	}
 }
 
