@@ -8,7 +8,6 @@ import * as fs from 'fs';
 import * as glob from 'glob';
 import * as gulp from 'gulp';
 import * as path from 'path';
-import * as os from 'os';
 import { Stream } from 'stream';
 import * as File from 'vinyl';
 import * as vsce from 'vsce';
@@ -289,7 +288,7 @@ export function packageExtensionsStream(optsIn?: IPackageExtensionsOptions): Nod
 		.pipe(filter(['**', '!**/*.js.map']));
 }
 
-export function packageKodeExtensionsStream(opts?: IPackageExtensionsOptions): NodeJS.ReadWriteStream {
+export function packageKodeExtensionsStream(): NodeJS.ReadWriteStream {
 	const os = require('os');
 
 	const allFilters = [

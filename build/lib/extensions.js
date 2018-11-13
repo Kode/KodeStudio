@@ -228,9 +228,9 @@ function packageExtensionsStream(optsIn) {
         .pipe(filter(['**', '!**/*.js.map']));
 }
 exports.packageExtensionsStream = packageExtensionsStream;
-function packageKodeExtensionsStream(opts) {
-    var os = require('os');
-    var allFilters = [
+function packageKodeExtensionsStream() {
+    const os = require('os');
+    const allFilters = [
         { sys: 'linux-arm', glob: '!**/*-linuxarm' },
         { sys: 'linux-ia32', glob: '!**/*-linux32' },
         { sys: 'linux-x64', glob: '!**/*-linux64' },
@@ -238,16 +238,15 @@ function packageKodeExtensionsStream(opts) {
         { sys: 'win32-x64', glob: '!**/*.exe' },
         { sys: 'win32-x64', glob: '!**/*.dll' }
     ];
-    var sys = os.platform() + '-' + os.arch();
-    var filters = ['**'];
-    for (var _i = 0, allFilters_1 = allFilters; _i < allFilters_1.length; _i++) {
-        var filter_1 = allFilters_1[_i];
-        if (filter_1.sys !== sys) {
-            filters.push(filter_1.glob);
+    const sys = os.platform() + '-' + os.arch();
+    let filters = ['**'];
+    for (const filter of allFilters) {
+        if (filter.sys !== sys) {
+            filters.push(filter.glob);
         }
     }
     return gulp.src('kodeExtensions/**')
         .pipe(filter(filters))
-        .pipe(rename(function (path) { path.dirname = 'kodeExtensions/' + path.dirname; }));
+        .pipe(rename((path) => { path.dirname = 'kodeExtensions/' + path.dirname; }));
 }
 exports.packageKodeExtensionsStream = packageKodeExtensionsStream;
