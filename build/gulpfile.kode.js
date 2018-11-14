@@ -39,6 +39,10 @@ function execute(command, cwd) {
 async function compile() {
 	const extensions = fs.readdirSync('kodeExtensions');
 	for (const ext of extensions) {
+		if (ext === '.DS_Store') {
+			continue;
+		}
+
 		console.log(ext + ':');
 		if (ext !== 'hashlink-debug') {
 			await execute('npm install', path.join('kodeExtensions', ext));
