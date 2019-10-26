@@ -30,7 +30,7 @@
 	width: 100%;
 	height: calc(100% - 70px); /* centered below toolbar */
 	/* max-width: 260px; */
-	max-width: 90%;
+	max-width: 1024px;
 	background-repeat: no-repeat;
 	background-position: 50% 50%;
 	background-size: 70% 70%;
