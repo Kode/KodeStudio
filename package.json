@@ -37,7 +37,7 @@
     "iconv-lite": "0.4.23",
     "jschardet": "1.6.0",
     "keytar": "4.2.1",
-    "minimist": "1.2.0",
+    "minimist": "1.2.2",
     "native-is-elevated": "^0.2.1",
     "native-keymap": "1.2.5",
     "native-watchdog": "1.0.0",
