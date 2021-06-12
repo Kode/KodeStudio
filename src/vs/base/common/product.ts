@@ -36,6 +36,8 @@ export interface IProductConfiguration {
 	readonly quality?: string;
 	readonly commit?: string;
 
+	readonly kodeStudioVersion: string;
+
 	readonly nameShort: string;
 	readonly nameLong: string;
 

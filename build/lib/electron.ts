@@ -31,8 +31,8 @@ function darwinBundleDocumentType(extensions: string[], icon: string) {
 export const config = {
 	version: util.getElectronVersion(),
 	productAppName: product.nameLong,
-	companyName: 'Microsoft Corporation',
-	copyright: 'Copyright (C) 2021 Microsoft. All rights reserved',
+	companyName: 'Kode Studio team',
+	copyright: 'Copyright (C) 2021 Microsoft and the Kode Studio team. All rights reserved',
 	darwinIcon: 'resources/darwin/code.icns',
 	darwinBundleIdentifier: product.darwinBundleIdentifier,
 	darwinApplicationCategoryType: 'public.app-category.developer-tools',
