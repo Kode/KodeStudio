@@ -12,9 +12,16 @@ const fs = require('fs');
 const pall = require('p-all');
 const { all, copyrightFilter, indentationFilter, jsHygieneFilter, tsHygieneFilter } = require('./filters');
 
-const copyrightHeaderLines = [
+const copyrightHeaderLinesMicrosoft = [
 	'/*---------------------------------------------------------------------------------------------',
 	' *  Copyright (c) Microsoft Corporation. All rights reserved.',
+	' *  Licensed under the MIT License. See License.txt in the project root for license information.',
+	' *--------------------------------------------------------------------------------------------*/',
+];
+
+const copyrightHeaderLinesKodeStudio = [
+	'/*---------------------------------------------------------------------------------------------',
+	' *  Copyright (c) Kode Studio team. All rights reserved.',
 	' *  Licensed under the MIT License. See License.txt in the project root for license information.',
 	' *--------------------------------------------------------------------------------------------*/',
 ];
@@ -61,11 +68,22 @@ function hygiene(some, linting = true) {
 	const copyrights = es.through(function (file) {
 		const lines = file.__lines;
 
-		for (let i = 0; i < copyrightHeaderLines.length; i++) {
-			if (lines[i] !== copyrightHeaderLines[i]) {
-				console.error(file.relative + ': Missing or bad copyright statement');
-				errorCount++;
+		let microsoftHeader = true;
+
+		for (let i = 0; i < copyrightHeaderLinesMicrosoft.length; i++) {
+			if (lines[i] !== copyrightHeaderLinesMicrosoft[i]) {
+				microsoftHeader = false;
 				break;
+			}
+		}
+
+		if (!microsoftHeader) {
+			for (let i = 0; i < copyrightHeaderLinesKodeStudio.length; i++) {
+				if (lines[i] !== copyrightHeaderLinesKodeStudio[i]) {
+					console.error(file.relative + ': Missing or bad copyright statement');
+					errorCount++;
+					break;
+				}
 			}
 		}
 
