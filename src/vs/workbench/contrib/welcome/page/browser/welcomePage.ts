@@ -52,7 +52,7 @@ import { EditorInput } from 'vs/workbench/common/editor/editorInput';
 
 
 const configurationKey = 'workbench.startupEditor';
-const oldConfigurationKey = 'workbench.welcome.enabled';
+// const oldConfigurationKey = 'workbench.welcome.enabled';
 const telemetryFrom = 'welcomePage';
 
 export class WelcomePageContribution implements IWorkbenchContribution {
@@ -153,7 +153,7 @@ export class WelcomePageContribution implements IWorkbenchContribution {
 }
 
 function isWelcomePageEnabled(configurationService: IConfigurationService, contextService: IWorkspaceContextService) {
-	const startupEditor = configurationService.inspect<string>(configurationKey);
+	/*const startupEditor = configurationService.inspect<string>(configurationKey);
 	if (!startupEditor.userValue && !startupEditor.workspaceValue) {
 		const welcomeEnabled = configurationService.inspect(oldConfigurationKey);
 		if (welcomeEnabled.value !== undefined && welcomeEnabled.value !== null) {
@@ -166,7 +166,8 @@ function isWelcomePageEnabled(configurationService: IConfigurationService, conte
 	return startupEditor.value === 'welcomePage'
 		|| startupEditor.value === 'gettingStarted'
 		|| startupEditor.userValue === 'readme'
-		|| (contextService.getWorkbenchState() === WorkbenchState.EMPTY && (startupEditor.value === 'welcomePageInEmptyWorkbench' || startupEditor.value === 'gettingStartedInEmptyWorkbench'));
+		|| (contextService.getWorkbenchState() === WorkbenchState.EMPTY && (startupEditor.value === 'welcomePageInEmptyWorkbench' || startupEditor.value === 'gettingStartedInEmptyWorkbench'));*/
+	return false;
 }
 
 export class WelcomePageAction extends Action {
