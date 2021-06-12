@@ -69,15 +69,6 @@ jobs:
       - name: Compile and Download
         run: yarn npm-run-all --max_old_space_size=4095 -lp compile "electron x64" playwright-install download-builtin-extensions
 
-      - name: Run Unit Tests (Electron)
-        run: .\scripts\test.bat
-
-      - name: Run Unit Tests (Browser)
-        run: yarn test-browser --browser chromium
-
-      - name: Run Integration Tests (Electron)
-        run: .\scripts\test-integration.bat
-
   linux:
     name: Linux
     runs-on: ubuntu-latest
@@ -132,18 +123,6 @@ jobs:
       - name: Compile and Download
         run: yarn npm-run-all --max_old_space_size=4095 -lp compile "electron x64" playwright-install download-builtin-extensions
 
-      - name: Run Unit Tests (Electron)
-        id: electron-unit-tests
-        run: DISPLAY=:10 ./scripts/test.sh
-
-      - name: Run Unit Tests (Browser)
-        id: browser-unit-tests
-        run: DISPLAY=:10 yarn test-browser --browser chromium
-
-      - name: Run Integration Tests (Electron)
-        id: electron-integration-tests
-        run: DISPLAY=:10 ./scripts/test-integration.sh
-
   darwin:
     name: macOS
     runs-on: macos-latest
@@ -187,15 +166,6 @@ jobs:
 
       - name: Compile and Download
         run: yarn npm-run-all --max_old_space_size=4095 -lp compile "electron x64" playwright-install download-builtin-extensions
-
-      - name: Run Unit Tests (Electron)
-        run: DISPLAY=:10 ./scripts/test.sh
-
-      - name: Run Unit Tests (Browser)
-        run: DISPLAY=:10 yarn test-browser --browser chromium
-
-      - name: Run Integration Tests (Electron)
-        run: DISPLAY=:10 ./scripts/test-integration.sh
 
   hygiene:
     name: Hygiene, Layering and Monaco Editor
