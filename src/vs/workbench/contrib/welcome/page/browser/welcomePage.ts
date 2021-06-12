@@ -14,7 +14,7 @@ import { IInstantiationService } from 'vs/platform/instantiation/common/instanti
 import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { onUnexpectedError, isPromiseCanceledError } from 'vs/base/common/errors';
 import { IWindowOpenable } from 'vs/platform/windows/common/windows';
-import { IWorkspaceContextService, WorkbenchState } from 'vs/platform/workspace/common/workspace';
+import { IWorkspaceContextService/*, WorkbenchState*/ } from 'vs/platform/workspace/common/workspace';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { localize } from 'vs/nls';
 import { Action, WorkbenchActionExecutedEvent, WorkbenchActionExecutedClassification } from 'vs/base/common/actions';
