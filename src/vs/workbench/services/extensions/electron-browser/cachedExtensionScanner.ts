@@ -42,6 +42,14 @@ function getExtraDevSystemExtensionsRoot(): string {
 	return _ExtraDevSystemExtensionsRoot;
 }
 
+let _KodeExtensionsRoot: string | null = null;
+function getKodeExtensionsRoot(): string {
+	if (!_KodeExtensionsRoot) {
+		_KodeExtensionsRoot = path.normalize(path.join(FileAccess.asFileUri('', require).fsPath, '..', 'kodeExtensions'));
+	}
+	return _KodeExtensionsRoot;
+}
+
 export class CachedExtensionScanner {
 
 	public readonly scannedExtensions: Promise<IExtensionDescription[]>;
@@ -275,6 +283,15 @@ export class CachedExtensionScanner {
 			finalBuiltinExtensions = ExtensionScanner.mergeBuiltinExtensions(builtinExtensions, extraBuiltinExtensions);
 		}
 
+		const kodeExtensions = this._scanExtensionsWithCache(
+			hostService,
+			notificationService,
+			environmentService,
+			BUILTIN_MANIFEST_CACHE_FILE,
+			new ExtensionScannerInput(version, date, commit, locale, devMode, getKodeExtensionsRoot(), true, false, translations),
+			log
+		);
+
 		const userExtensions = (this._scanExtensionsWithCache(
 			hostService,
 			notificationService,
@@ -301,7 +318,7 @@ export class CachedExtensionScanner {
 			});
 		}
 
-		return Promise.all([finalBuiltinExtensions, userExtensions, developedExtensions]).then((extensionDescriptions: IExtensionDescription[][]) => {
+		return Promise.all([finalBuiltinExtensions, kodeExtensions, userExtensions, developedExtensions]).then((extensionDescriptions: IExtensionDescription[][]) => {
 			const system = extensionDescriptions[0];
 			const user = extensionDescriptions[1];
 			const development = extensionDescriptions[2];
